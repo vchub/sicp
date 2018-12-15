@@ -11,7 +11,7 @@
 (defn abs-diff [x y] (abs (- x y)))
 
 (defn inverse
-  "inverse of f at y by Newton's method"
+  "root of inverse of f at y by Newton's method"
   [f df eps y x0]
   (let [_f (fn [x] (- (f x0) y))]
     (cond
