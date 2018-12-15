@@ -39,8 +39,7 @@
   (let [eps 0.05]
     (is (> eps (abs-diff 2 (sqrt 4 eps))))
     (is (> (Math/pow eps 2) (abs-diff (Math/sqrt 3) (sqrt 3 eps))))
-    (is (> (Math/pow eps 2) (abs-diff (Math/pow 3 (/ 1 3)) (cube-root 3 eps))))
-    ))
+    (is (> (Math/pow eps 2) (abs-diff (Math/pow 3 (/ 1 3)) (cube-root 3 eps))))))
 
 (comment
   (mod 5 2)
