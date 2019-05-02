@@ -54,6 +54,7 @@
   (some #{\c} ltbl))
 
 
+
 ;; (defn part2 [s] (partition 2 s))
 ;; (comment (part2 "abcd")
 ;;          (reverse "abc")
