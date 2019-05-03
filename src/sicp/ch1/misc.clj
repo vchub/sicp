@@ -40,8 +40,7 @@
   (is (= 4 (ex111 3)))
   (is (= 4 (ex111iter 3)))
   (is (= (ex111 5) (ex111iter 5)))
-  (is (= (ex111 7) (ex111iter 7)))
-  )
+  (is (= (ex111 7) (ex111iter 7))))
 
 (defn inverse
   "root of inverse of f at y by Newton's method"
@@ -74,25 +73,59 @@
     (is (> (Math/pow eps 2) (abs-diff (Math/sqrt 3) (sqrt 3 eps))))
     (is (> (Math/pow eps 2) (abs-diff (Math/pow 3 (/ 1 3)) (cube-root 3 eps))))))
 
-(defn coins-num
-  "num, [num] -> num"
-  [amount xs]
-  (cond
-    (< amount 0) 0
-    (empty? xs) 0
-    (= amount 0) 1
-    :else (+ (coins-num (- amount (first xs)) xs) (coins-num amount (rest xs)))))
+;; num, [num] -> num
+(def coins-num
+  (memoize (fn [amount xs]
+             (cond
+               (< amount 0) 0
+               (empty? xs) 0
+               (= amount 0) 1
+               :else (+ (coins-num (- amount (first xs)) xs) (coins-num amount (rest xs)))))))
 
 (testing
-  (is (= 0 (coins-num 1 [])))
+ (is (= 0 (coins-num 1 [])))
   (is (= 1 (coins-num 1 [1])))
   (is (= 1 (coins-num 1 [1 2])))
   (is (= 2 (coins-num 2 [1 2])))
   (is (= 2 (coins-num 3 [1 2])))
   (is (= 3 (coins-num 3 [1 2 3])))
+  (is (= 292 (coins-num 100 [1 5 10 25 50]))))
+
+(defn ex112
+  "int -> int
+   A Pascal triangle element f(n,k) = f(n-1, k-1) + f(n-1, k)"
+  [n k]
+  (let [iter  (fn [i raw]
+                ;; (prn i raw)
+                (if (= i n)
+                  (nth raw k)
+                  (let [i (inc i)
+                        cnth (fn [j]
+                               (cond
+                                 (zero? j) 1
+                                 :else (+ (nth raw (dec j)) (nth raw j))))]
+
+                    (recur i (vec (concat (map cnth (range i)) [1]))))))]
+
+    (if (<= n 1)
+      1
+      (iter 1 [1 1]))))
+
+(testing
+ (is (= 1 (ex112 1 0)))
+  (is (= 1 (ex112 2 0)))
+  (is (= 2 (ex112 2 1)))
+  (is (= 1 (ex112 3 0)))
+  (is (= 3 (ex112 3 1)))
+  (is (= 3 (ex112 3 2)))
+  (is (= 1 (ex112 3 3)))
+  (is (= 4 (ex112 4 3)))
+  (is (= 6 (ex112 4 2)))
   )
 
 (comment
+  (concat (range 3) [1])
+  (vec (list 1 2))
   (mod 5 2)
   (rem 5 2)
   (/ 3. 4.)
