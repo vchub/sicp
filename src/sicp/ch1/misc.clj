@@ -120,10 +120,45 @@
   (is (= 3 (ex112 3 2)))
   (is (= 1 (ex112 3 3)))
   (is (= 4 (ex112 4 3)))
-  (is (= 6 (ex112 4 2)))
+  (is (= 6 (ex112 4 2))))
+
+(defn exponent [a n]
+  (cond
+    (= 0 n) 1
+    (= 1 n) a
+    :else
+    (let [x (exponent a (int (/ n 2)))
+          y (exponent a (mod n 2))]
+      (* x x y))))
+
+(defn square [x] (* x x))
+
+(defn exponent1 [a n]
+  (cond
+    (zero? n) 1
+    (= 1 n) a
+    (even? n) (square (exponent1 a (/ n 2)))
+    :else
+      (* (exponent1 a (dec n)) a)))
+
+(testing
+
+   (doseq [f [exponent exponent1]]
+   (is (= 1 (f 2 0)))
+  (is (= 4 (f 2 2)))
+  (is (= 8 (f 2 3)))
+  (is (= 9 (f 3 2)))
+  (is (= 27 (f 3 3)))
+  )
   )
 
 (comment
+  (let [a (/ 12.15 0.1)
+        log (fn [x] (Math/log x))]
+    (/ (log a) (log 3)))
+
+  (flatten
+   (map-indexed (fn [i x] [i x]) (range 1 5)))
   (concat (range 3) [1])
   (vec (list 1 2))
   (mod 5 2)
