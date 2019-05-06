@@ -139,17 +139,39 @@
     (= 1 n) a
     (even? n) (square (exponent1 a (/ n 2)))
     :else
-      (* (exponent1 a (dec n)) a)))
+    (* (exponent1 a (dec n)) a)))
+
+(defn fast-exp-iter [b n]
+  (loop [b b n n a 1]
+    ;; invariant a * b^n
+    (cond
+      (= n 0) 1
+      (= n 1) (* b a)
+      (odd? n) (recur (square b) (int (/ n 2)) b)
+      :else
+      (recur (square b) (int (/ n 2)) 1))))
 
 (testing
 
-   (doseq [f [exponent exponent1]]
+ (doseq [f [exponent exponent1 fast-exp-iter]]
    (is (= 1 (f 2 0)))
-  (is (= 4 (f 2 2)))
-  (is (= 8 (f 2 3)))
-  (is (= 9 (f 3 2)))
-  (is (= 27 (f 3 3)))
-  )
+   (is (= 4 (f 2 2)))
+   (is (= 8 (f 2 3)))
+   (is (= 9 (f 3 2)))
+   (is (= 27 (f 3 3)))))
+
+(defn gcd
+  "gcd(a,b) = gcd(b, a%b)"
+  [a b]
+  (let [r (mod a b)]
+    (if (zero? r)
+    b
+    (recur b r))))
+
+(testing
+  (is (= 1 (gcd 1 1)))
+  (is (= 2 (gcd 4 2)))
+  (is (= 4 (gcd 28 16)))
   )
 
 (comment
