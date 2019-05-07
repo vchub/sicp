@@ -165,16 +165,76 @@
   [a b]
   (let [r (mod a b)]
     (if (zero? r)
-    b
-    (recur b r))))
+      b
+      (recur b r))))
 
 (testing
-  (is (= 1 (gcd 1 1)))
+ (is (= 1 (gcd 1 1)))
   (is (= 2 (gcd 4 2)))
-  (is (= 4 (gcd 28 16)))
+  (is (= 4 (gcd 28 16))))
+
+(defn smallest-divisor
+  [n]
+  (loop [i 2]
+    (cond
+      (> (square i) n) n
+      (zero? (mod n i)) i
+      :else
+      (recur (inc i)))))
+
+(defn prime?
+  [n]
+  (= n (smallest-divisor n)))
+
+(testing
+  (is (= 1 (smallest-divisor 1)))
+  (is (= 2 (smallest-divisor 2)))
+  (is (= 2 (smallest-divisor 4)))
+  (is (= 3 (smallest-divisor 3)))
+  (is (= 2 (smallest-divisor 6)))
+  (is (= 3 (smallest-divisor 15)))
+  (is (not= 5 (smallest-divisor 15)))
+  (is (prime? 2))
+  (is (not (prime? 4)))
+  (is (not (prime? 93)))
+  (is (prime? 23))
+  )
+
+(defn expmod
+  "a^n mod m
+   invariant: a^n mod m * b^n mod m = (a*b)^n mod m"
+  [base exp m]
+  (cond
+    (zero? exp) 1
+    (even? exp) (mod (square (expmod base (/ exp 2) m)) m)
+    :else (mod (* base (expmod base (dec exp) m)) m)
+    )
+  )
+
+(defn ferma-test [n]
+  (let [a (inc (rand-int (dec n)))]
+    (= a (expmod a n n))))
+
+(defn fast-prime? [n times]
+  (loop [times times]
+    (cond
+    (zero? times) true
+    (ferma-test n) (recur (dec times))
+    :else false)))
+
+(testing
+  (is (= 1 (expmod 2 3 7)))
+  (is (= 2 (expmod 2 4 7)))
+  (is (fast-prime? 3 2))
+  (is (not (fast-prime? 12 2)))
+  (is (not (fast-prime? 22 2)))
+  (is (fast-prime? 23 2))
+  (is (not (fast-prime? 51 2)))
+  (is (fast-prime? 53 2))
   )
 
 (comment
+  (rand-int 10)
   (let [a (/ 12.15 0.1)
         log (fn [x] (Math/log x))]
     (/ (log a) (log 3)))
