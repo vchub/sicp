@@ -175,19 +175,21 @@
 
 (defn smallest-divisor
   [n]
-  (loop [i 2]
-    (cond
-      (> (square i) n) n
-      (zero? (mod n i)) i
-      :else
-      (recur (inc i)))))
+  (if (even? n)
+    2
+    (loop [i 3]
+      (cond
+        (> (square i) n) n
+        (zero? (mod n i)) i
+        :else
+        (recur (+ i 2))))))
 
 (defn prime?
   [n]
   (= n (smallest-divisor n)))
 
 (testing
-  (is (= 1 (smallest-divisor 1)))
+ (is (= 1 (smallest-divisor 1)))
   (is (= 2 (smallest-divisor 2)))
   (is (= 2 (smallest-divisor 4)))
   (is (= 3 (smallest-divisor 3)))
@@ -197,8 +199,7 @@
   (is (prime? 2))
   (is (not (prime? 4)))
   (is (not (prime? 93)))
-  (is (prime? 23))
-  )
+  (is (prime? 23)))
 
 (defn expmod
   "a^n mod m
@@ -207,9 +208,7 @@
   (cond
     (zero? exp) 1
     (even? exp) (mod (square (expmod base (/ exp 2) m)) m)
-    :else (mod (* base (expmod base (dec exp) m)) m)
-    )
-  )
+    :else (mod (* base (expmod base (dec exp) m)) m)))
 
 (defn ferma-test [n]
   (let [a (inc (rand-int (dec n)))]
@@ -218,22 +217,38 @@
 (defn fast-prime? [n times]
   (loop [times times]
     (cond
-    (zero? times) true
-    (ferma-test n) (recur (dec times))
-    :else false)))
+      (zero? times) true
+      (ferma-test n) (recur (dec times))
+      :else false)))
 
 (testing
-  (is (= 1 (expmod 2 3 7)))
+ (is (= 1 (expmod 2 3 7)))
   (is (= 2 (expmod 2 4 7)))
   (is (fast-prime? 3 2))
   (is (not (fast-prime? 12 2)))
   (is (not (fast-prime? 22 2)))
   (is (fast-prime? 23 2))
   (is (not (fast-prime? 51 2)))
-  (is (fast-prime? 53 2))
-  )
+  (is (fast-prime? 53 2)))
+
+(defn ferma-test-all [n]
+  (loop [a (dec n)]
+    (cond
+      (= 1 a) true
+      (= a expmod a n n) (recur (dec a))
+      :else false)
+    ))
+
+(testing
+  ;; Testing Charmichael numbers
+ (doseq [x [561, 1105, 1729, 2465, 2821, 6601]]
+   (is (fast-prime? x 3))
+   (is (not (ferma-test-all x )))
+   ))
 
 (comment
+  (time (Thread/sleep 100))
+  (doseq [x [199 1999 19999]] (prn x (smallest-divisor x)))
   (rand-int 10)
   (let [a (/ 12.15 0.1)
         log (fn [x] (Math/log x))]
