@@ -82,11 +82,44 @@
     (iter a 0)))
 
 (testing
- (is (= 55 (sum-iter identity 0 inc 10)))
- )
+ (is (= 55 (sum-iter identity 0 inc 10))))
 
+(defn reduce-iter
+  [term a nxt b acc]
+  (loop [a a acc acc]
+    (cond
+      (>= a b) acc
+      :else
+      (recur (nxt a) (term acc a)))))
 
+(defn product-a-b
+  [a b]
+  (reduce-iter * a inc b 1))
+
+(defn pi-aprox
+  [n]
+  (let [f (fn [[acc c d] i] (if (even? i)
+                              [(* acc (/ c d)) (+ 2 c) d]
+                              [(* acc (/ c d)) c (+ 2 d)]))]
+
+    (-> (reduce f [1 2 3] (range n))
+        (get 0)
+        (float)
+        (* 4))))
+
+(defn in-d-range
+  [a x dx]
+  (and (< a (+ x dx))
+       (> a (- x dx))))
+
+(testing
+ (is (= 1 (product-a-b 1 1)))
+  (is (= 1 (product-a-b 1 2)))
+  (is (= 2 (product-a-b 1 3)))
+  (is (in-d-range (pi-aprox 20) Math/PI 0.1)))
 
 (comment
   (integral cube 0 1 0.1)
-  (map-indexed vector (range 0 1 0.2)))
+  (map-indexed vector (range 0 1 0.2))
+  (float 2/3)
+  (get [0 3 2] 1))
