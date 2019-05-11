@@ -1,5 +1,7 @@
 (ns sicp.ch1.ch_1_3
-  (:require [clojure.test :refer :all]))
+  (:require [clojure.test :refer :all]
+            [clojure.string :as string]
+            [sicp.ch1.misc :as msc]))
 
 (defn sum-rec
   "(num->num) num (num->num) num"
@@ -118,7 +120,76 @@
   (is (= 2 (product-a-b 1 3)))
   (is (in-d-range (pi-aprox 20) Math/PI 0.1)))
 
+(defn prime-sqr
+  [a b]
+  (let [a (cond
+            (= 2 a) 2
+            (even? a) (inc a)
+            :else a)]
+    (->> (range a b)
+         (filter msc/prime?)
+         (map sqr)
+         (reduce +))))
+
+(defn gcd [a b]
+  (let [r (mod a b)]
+    (cond
+      (zero? r) b
+      :else (recur b r))))
+
+(testing
+ (is (= 13 (prime-sqr 2 4)))
+  (is (= 38 (prime-sqr 2 6)))
+  (is (= 1 (gcd 3 2)))
+  (is (= 2 (gcd 6 4))))
+
+(defn abs[x] (if (pos? x) x (* -1 x)) )
+(defn close-enough [a b dx](< (abs (- b a)) dx))
+
+(defn bi-root
+  "half interval method of finding root of f: f(x)=0 on [a b]"
+  [f neg pos dx]
+  (let [
+        average (fn [a b] (/ (+ a b) 2))
+        mid (float (average neg pos))
+        y (f mid)]
+    ;; (prn mid y neg pos (close-enough neg pos dx))
+    (cond
+      (close-enough neg pos dx) mid
+      (< y 0) (recur f mid pos dx)
+      (> y 0) (recur f neg mid dx)
+      :else mid)))
+
+(defn bi-root-method
+  "half interval method of finding root of f: f(x)=0 on [a b]"
+  [f a b dx]
+    (cond
+      (and (neg? (f a)) (pos? (f b))) (bi-root f a b dx)
+      (and (neg? (f b)) (pos? (f a))) (bi-root f b a dx)
+      :else (throw (Exception. (format "Values are not of opposite sign %d %d" a b)))))
+
+(testing
+  (is (= 0. (bi-root (fn[x] x) -1 1 0.1 )))
+  (is (= -0.5 (bi-root (fn[x] (+ (* 2 x) 1)) -1 1 0.1 )))
+  (is (= -0.5 (bi-root-method (fn[x] (+ (* 2 x) 1)) 1 -1 0.1 )))
+  (is (= (close-enough 3.14 (bi-root-method (fn[x] (Math/sin x)) 2 4 0.1 ) 0.1)))
+  )
+
 (comment
+  (Math/sin 2)
+  (Math/sin 4)
+  (let [f (fn [x] x)]
+    (def y 3)
+    (def z (fn [] y))
+    (+ (f 1) y (z)))
+
+  (let [f (fn [g] (g 2))]
+    (f sqr)
+    (f (fn [x] (* x x x)))
+    ;; (f f)
+    )
+
+  (msc/prime? 4)
   (integral cube 0 1 0.1)
   (map-indexed vector (range 0 1 0.2))
   (float 2/3)
