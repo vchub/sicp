@@ -143,14 +143,13 @@
   (is (= 1 (gcd 3 2)))
   (is (= 2 (gcd 6 4))))
 
-(defn abs[x] (if (pos? x) x (* -1 x)) )
-(defn close-enough [a b dx](< (abs (- b a)) dx))
+(defn abs [x] (if (pos? x) x (* -1 x)))
+(defn close-enough [a b dx] (< (abs (- b a)) dx))
 
 (defn bi-root
   "half interval method of finding root of f: f(x)=0 on [a b]"
   [f neg pos dx]
-  (let [
-        average (fn [a b] (/ (+ a b) 2))
+  (let [average (fn [a b] (/ (+ a b) 2))
         mid (float (average neg pos))
         y (f mid)]
     ;; (prn mid y neg pos (close-enough neg pos dx))
@@ -163,17 +162,124 @@
 (defn bi-root-method
   "half interval method of finding root of f: f(x)=0 on [a b]"
   [f a b dx]
-    (cond
-      (and (neg? (f a)) (pos? (f b))) (bi-root f a b dx)
-      (and (neg? (f b)) (pos? (f a))) (bi-root f b a dx)
-      :else (throw (Exception. (format "Values are not of opposite sign %d %d" a b)))))
+  (cond
+    (and (neg? (f a)) (pos? (f b))) (bi-root f a b dx)
+    (and (neg? (f b)) (pos? (f a))) (bi-root f b a dx)
+    :else (throw (Exception. (format "Values are not of opposite sign %d %d" a b)))))
 
 (testing
-  (is (= 0. (bi-root (fn[x] x) -1 1 0.1 )))
-  (is (= -0.5 (bi-root (fn[x] (+ (* 2 x) 1)) -1 1 0.1 )))
-  (is (= -0.5 (bi-root-method (fn[x] (+ (* 2 x) 1)) 1 -1 0.1 )))
-  (is (= (close-enough 3.14 (bi-root-method (fn[x] (Math/sin x)) 2 4 0.1 ) 0.1)))
+ (is (= 0. (bi-root (fn [x] x) -1 1 0.1)))
+  (is (= -0.5 (bi-root (fn [x] (+ (* 2 x) 1)) -1 1 0.1)))
+  (is (= -0.5 (bi-root-method (fn [x] (+ (* 2 x) 1)) 1 -1 0.1)))
+  (is (= (close-enough 3.14 (bi-root-method (fn [x] (Math/sin x)) 2 4 0.1) 0.1))))
+
+(defn fixed-point
+  "(num)-> num, num -> num"
+  [f guess dx]
+  (loop [fx (f guess) guess guess]
+    (if (close-enough fx guess dx)
+      guess
+      (recur (f fx) fx))))
+
+(defn golden-ratio
+  [dx]
+  (float (fixed-point (fn [x] (+ 1 (/ 1 x))) 1 dx)))
+
+(defn cont-frac
+  "(num)-> num, (num)->num, num -> num"
+  [n d k]
+  (loop [k k acc 0]
+    ;; (prn k acc)
+    (cond
+      (neg? k) acc
+      :else
+      (recur (dec k) (/ (n k) (+ (d k) acc))))))
+
+(defn reciprical [x] (/ 1 x))
+
+(defn golden-ratio-frac
+  [k]
+  (let [n (fn [k] 1)]
+    (reciprical (cont-frac n n k))))
+
+(defn tan-frac
+  [x k]
+  (let [n (fn [k] (if (zero? k) x (* -1 (* x x))))
+        d (fn [k] (inc (* 2 k)))]
+    (float (cont-frac n d k))))
+
+(testing
+ (is (close-enough 0.74 (fixed-point #(Math/cos %) 1 0.01) 0.01))
+  (is (close-enough (Math/sqrt 2) (float (fixed-point #(/ (+ % (/ 2 %)) 2) 1 0.01)) 0.01))
+  (is (close-enough (Math/sqrt 3) (float (fixed-point #(/ (+ % (/ 3 %)) 2) 1 0.01)) 0.01))
+  (is (close-enough  1.61 (golden-ratio 0.001) 0.01))
+  (is (close-enough  (/ (+ 1 (Math/sqrt 5)) 2) (golden-ratio 0.001) 0.001))
+
+  (is (close-enough  (/ (+ 1 (Math/sqrt 5)) 2) (golden-ratio-frac 10) 0.0001))
+
+  (is (close-enough  (Math/tan 2) (tan-frac 2 10) 0.0001)))
+
+(defn average [a b] (/ (+ a b) 2))
+
+(defn average-damp
+  [f]
+  (fn [x] (average x (f x))))
+
+(defn square [x] (* x x))
+
+(defn sqr-damp
+  [x dx]
+  (float (fixed-point
+    (average-damp (fn [y] (/ x y))) 1 dx)))
+
+(defn cube-root-damp
+  [x dx]
+  (float (fixed-point
+    (average-damp (fn [y] (/ x (square y)))) 1 dx)))
+
+(testing
+  (is (close-enough (Math/sqrt 2) (sqr-damp 2 0.01) 0.01))
+  (is (close-enough (Math/sqrt 3) (sqr-damp 3 0.01) 0.01))
+  (is (close-enough (Math/pow 3 (/ 1 3)) (cube-root-damp 3 0.01) 0.01))
   )
+
+(defn deriv [f dx] (fn [x] (/ (- (f (+ x dx)) (f x)) dx)))
+
+(defn newton-transform
+  [g dx]
+  (let [dg (deriv g dx)]
+    (fn [x] (- x (/ (g x) (dg x)))))
+  )
+
+(defn newton-method
+  [g guess dx]
+  (fixed-point (newton-transform g dx) guess dx)
+  )
+
+(defn sqr-newton
+  [x dx]
+  (float (newton-method (fn [y] (- (square y) x)) 1 dx)))
+
+(defn fixed-point-of-transform
+  [g transform guess dx]
+  (fixed-point (transform g) guess dx))
+
+(defn sqr-damp-transf
+  [x dx]
+  (fixed-point-of-transform (fn [y] (/ x y)) average-damp 1 dx))
+
+(defn sqr-newton-trans
+  [x dx]
+  (fixed-point-of-transform #(- (square %) x) #(newton-transform % dx) 1 dx))
+
+(testing
+  (is (close-enough (Math/sqrt 2) (sqr-newton 2 0.01) 0.01))
+  (is (close-enough (Math/sqrt 5) (sqr-newton 5 0.01) 0.01))
+
+  (is (close-enough (Math/sqrt 2) (sqr-damp-transf 2 0.01) 0.01))
+  (is (close-enough (Math/sqrt 2) (sqr-newton-trans 2 0.01) 0.01))
+  )
+
 
 (comment
   (Math/sin 2)
