@@ -41,32 +41,27 @@
 (defn iterative-improve
   "(num)->num,(num)->num -> (num)-num"
   [good? improve]
-  (fn[x]
+  (fn [x]
     (if (good? x) x (recur (improve x)))))
 
 (defn fixed-point
   "(num)->num, num, num -> num"
   [f x dx]
-  (let [good? (fn[x] (< (ch13/abs (- (f x) x)) dx))
-        ]
+  (let [good? (fn [x] (< (ch13/abs (- (f x) x)) dx))]
     ((iterative-improve good? f) x)))
 
 (defn sqrt-iterative-improve
   "num -> num"
   [x dx]
-  (fixed-point (fn[y] (/ (+ y (/ x y)) 2)) 1 dx )
-  )
+  (fixed-point (fn [y] (/ (+ y (/ x y)) 2)) 1 dx))
 
 (defn sqrt-iterative-improve-newton
   "num -> num"
   [x dx]
-  (let [improve (ch13/newton-transform (fn[y] (- (square y) x)) dx)
-        good? (fn[y] (< (ch13/abs (- (square y) x)) dx))
-        ]
-  ((iterative-improve good? improve) 1))
-  )
+  (let [improve (ch13/newton-transform (fn [y] (- (square y) x)) dx)
+        good? (fn [y] (< (ch13/abs (- (square y) x)) dx))]
+    ((iterative-improve good? improve) 1)))
 
 (testing
-  (is (ch13/close-enough (Math/sqrt 2) (sqrt-iterative-improve 2 0.01) 0.01))
-  (is (ch13/close-enough (Math/sqrt 2) (sqrt-iterative-improve-newton 2 0.01) 0.01))
-  )
+ (is (ch13/close-enough (Math/sqrt 2) (sqrt-iterative-improve 2 0.01) 0.01))
+  (is (ch13/close-enough (Math/sqrt 2) (sqrt-iterative-improve-newton 2 0.01) 0.01)))

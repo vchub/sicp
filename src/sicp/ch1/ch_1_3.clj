@@ -230,31 +230,28 @@
 (defn sqr-damp
   [x dx]
   (float (fixed-point
-    (average-damp (fn [y] (/ x y))) 1 dx)))
+          (average-damp (fn [y] (/ x y))) 1 dx)))
 
 (defn cube-root-damp
   [x dx]
   (float (fixed-point
-    (average-damp (fn [y] (/ x (square y)))) 1 dx)))
+          (average-damp (fn [y] (/ x (square y)))) 1 dx)))
 
 (testing
-  (is (close-enough (Math/sqrt 2) (sqr-damp 2 0.01) 0.01))
+ (is (close-enough (Math/sqrt 2) (sqr-damp 2 0.01) 0.01))
   (is (close-enough (Math/sqrt 3) (sqr-damp 3 0.01) 0.01))
-  (is (close-enough (Math/pow 3 (/ 1 3)) (cube-root-damp 3 0.01) 0.01))
-  )
+  (is (close-enough (Math/pow 3 (/ 1 3)) (cube-root-damp 3 0.01) 0.01)))
 
 (defn deriv [f dx] (fn [x] (/ (- (f (+ x dx)) (f x)) dx)))
 
 (defn newton-transform
   [g dx]
   (let [dg (deriv g dx)]
-    (fn [x] (- x (/ (g x) (dg x)))))
-  )
+    (fn [x] (- x (/ (g x) (dg x))))))
 
 (defn newton-method
   [g guess dx]
-  (fixed-point (newton-transform g dx) guess dx)
-  )
+  (fixed-point (newton-transform g dx) guess dx))
 
 (defn sqr-newton
   [x dx]
@@ -273,13 +270,11 @@
   (fixed-point-of-transform #(- (square %) x) #(newton-transform % dx) 1 dx))
 
 (testing
-  (is (close-enough (Math/sqrt 2) (sqr-newton 2 0.01) 0.01))
+ (is (close-enough (Math/sqrt 2) (sqr-newton 2 0.01) 0.01))
   (is (close-enough (Math/sqrt 5) (sqr-newton 5 0.01) 0.01))
 
   (is (close-enough (Math/sqrt 2) (sqr-damp-transf 2 0.01) 0.01))
-  (is (close-enough (Math/sqrt 2) (sqr-newton-trans 2 0.01) 0.01))
-  )
-
+  (is (close-enough (Math/sqrt 2) (sqr-newton-trans 2 0.01) 0.01)))
 
 (comment
   (Math/sin 2)
