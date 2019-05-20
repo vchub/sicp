@@ -11,4 +11,5 @@
              :dev { :plugins [[com.jakemccrary/lein-test-refresh "0.23.0"]
                              [lein-cljfmt "0.6.3"]
                              ]
-                   :dependencies [[lein-cljfmt "0.6.3"]]}})
+                   :dependencies [[lein-cljfmt "0.6.3"]
+                                  [org.clojure/math.combinatorics "0.1.5"]]}})
