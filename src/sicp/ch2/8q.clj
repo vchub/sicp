@@ -1,6 +1,18 @@
 (ns sicp.ch2.8q
   (:require [clojure.test :refer :all]))
 
+(defn triple-s [n s]
+  (for [k (range n)
+        j (range k)
+        i (range j)
+    :when (= s (+ i j k))]
+    [i j k]))
+
+(testing
+  (is (= [[0 1 2]] (triple-s 4 3)))
+  (is (= [[0 2 3] [0 1 4]] (triple-s 5 5)))
+  )
+
 (defn abs [x] (if (< x 0) (* -1 x) x))
 
 (defn valid? [board]

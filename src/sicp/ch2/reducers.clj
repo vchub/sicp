@@ -117,17 +117,32 @@
       (cons (conj h x) acc)
       (recur (conj h (first t)) (rest t) (cons (concat h [x] t) acc)))))
 
-(defn perm [xs]
+(def perm (memoize (fn [xs]
   (if (empty? xs)
     [[]]
-    (mapcat (fn [s] (permx (first xs) s)) (perm (rest xs)))))
+    (mapcat (fn [s] (permx (first xs) s)) (perm (rest xs)))))))
+
+
+(def permutations(memoize (fn [xs]
+  (if (empty? xs)
+    [[]]
+    (mapcat (fn[x]
+              (map (fn[p] (cons x p)) (permutations (remove (fn[y] (= x y)) xs)))) xs)))))
 
 (testing
  (is (= [[0 1 2] [1 0 2] [1 2 0]] (reverse (permx 0 [1 2]))))
   (is (= (set '((0 1 2) (0 2 1) (1 0 2) (1 2 0) (2 0 1) (2 1 0))) (set (perm [0 1 2]))))
-  (is (= (set (comb/permutations [1 2 3 4])) (set (perm [1 2 3 4])))))
+  (is (= (set (comb/permutations [1 2 3 4])) (set (perm [1 2 3 4]))))
+
+  (is (= (set (comb/permutations [1 2 3])) (set (permutations [1 2 3]))))
+  )
 
 (comment
+  (let [N 10]
+    (prn "perm insert " (time (do (perm (range N)) nil)))
+    (prn "perm remove " (time (do (permutations (range N)) nil)))
+    )
+  (remove (fn[x] (= 1 x)) '(0 1 2))
   (for [i (range 3)
         j (range i)]
     (list j i))
