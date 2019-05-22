@@ -40,10 +40,20 @@
       (empty? syms) num-sum
       :else (concat '(*) [num-sum] syms))))
 
+(defn make-expon [base pow]
+  (cond
+    (zero? pow) 1
+    (= 1 pow) base
+    (symbol? base) (list '** base pow)
+    (and (number? base) (number? pow)) (Math/pow base pow)
+    :else (throw (Exception. (str "unknown exponent expression " base pow)))))
+
 (defn sum? [e] (and (list? e) (= '+ (first e))))
 (defn product? [e] (and (list? e) (= '* (first e))))
+(defn expon? [e] (and (list? e) (= '** (first e))))
 (def a1 second)
-(defn a2 [e] (drop 2 e))
+(defn a2 [e] (rest e))
+(defn third [e] (nth e 2))
 
 (def prod-deriv)
 
@@ -53,9 +63,9 @@
     (cond
       (number? e) 0
       (variable? e) (if (same-var? e x) 1 0)
-      (sum? e) (make-sum (map dx (rest e)))
-    ;; (sum? e) (make-sum [(dx (a1 e)) (dx (a2 e))])
-      (product? e) (prod-deriv (rest e) x)
+      (sum? e) (make-sum (map dx (a2 e)))
+      (product? e) (prod-deriv (a2 e) x)
+      (expon? e) (make-prod [(third e) (make-expon (a1 e) (dec (third e)))])
       :else (throw (Exception. (str "unknown expression " e))))))
 
 (defn rm [x xs]
@@ -69,7 +79,14 @@
   (make-sum (map (fn [y] (make-prod (cons (deriv y x) (rm y xs)))) xs)))
 
 (testing
- (is (= 'y (prod-deriv '(x y) 'x)))
+ (is (expon? '(** b 2)))
+  (is (= '(** a 2) (make-expon 'a 2)))
+  ;; (is (= '(** a b) (make-expon 'a 'b)))
+  (is (= 8.0 (make-expon 2 3)))
+  (is (= '(* 2 x) (deriv '(** x 2) 'x)))
+  (is (= '(* 3 (** x 2)) (deriv '(** x 3) 'x)))
+
+  (is (= 'y (prod-deriv '(x y) 'x)))
   (is (= 3 (prod-deriv '(x 3) 'x)))
   (is (= 3 (prod-deriv '(3 x) 'x)))
   (is (= '(+ x x) (prod-deriv '(x x) 'x)))
@@ -90,8 +107,8 @@
   (is (= 1 (deriv '(+ x 3 4) 'x)))
   ;; (is (= 6 (deriv '(+ (* 3 x) (* 2 x) x) 'x)))
 
-  (is (= '(2) (a2 '(* 1 2))))
-  (is (= '(2 x) (a2 '(* 1 2 x))))
+  (is (= '(1 2) (a2 '(* 1 2))))
+  (is (= '(1 2 x) (a2 '(* 1 2 x))))
   (is (= 0 (deriv 3 'x)))
   (is (= 1 (deriv '(+ x 3) 'x)))
   (is (product? '(* x 3)))
@@ -105,3 +122,6 @@
   (is (= 4 (deriv '(+ (* 3 x) (+ 2 x)) 'x)))
   (is (= 5 (deriv '(+ (* 3 x) (* 2 x)) 'x)))
   (is (= '(+ 3 (* 2 y)) (deriv '(+ (* 3 x) (* 2 x y)) 'x))))
+
+(comment
+  (nth [1 2 3] 0))
