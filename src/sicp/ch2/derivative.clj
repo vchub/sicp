@@ -48,9 +48,9 @@
     (and (number? base) (number? pow)) (Math/pow base pow)
     :else (throw (Exception. (str "unknown exponent expression " base pow)))))
 
-(defn sum? [e] (and (list? e) (= '+ (first e))))
-(defn product? [e] (and (list? e) (= '* (first e))))
-(defn expon? [e] (and (list? e) (= '** (first e))))
+(defn sum? [e] (and (seq? e) (= '+ (first e))))
+(defn product? [e] (and (seq? e) (= '* (first e))))
+(defn expon? [e] (and (seq? e) (= '** (first e))))
 (def a1 second)
 (defn a2 [e] (rest e))
 (defn third [e] (nth e 2))
@@ -66,7 +66,7 @@
       (sum? e) (make-sum (map dx (a2 e)))
       (product? e) (prod-deriv (a2 e) x)
       (expon? e) (make-prod [(third e) (make-expon (a1 e) (dec (third e)))])
-      :else (throw (Exception. (str "unknown expression " e))))))
+      :else (throw (Exception. (str "unknown expression " e (type e) (first e) (list? e)))))))
 
 (defn rm [x xs]
   (loop [t xs acc []]
