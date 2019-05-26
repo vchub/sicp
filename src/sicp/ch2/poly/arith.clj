@@ -7,19 +7,38 @@
 (def f-tbl (atom {}))
 
 (defn put [op a-types f]
-  (swap! f-tbl assoc-in [op a-types] f)
-  )
+  (swap! f-tbl assoc-in [op a-types] f))
 
-
-(defn atype[x]
-(let [t (:t (meta x))]
+(defn atype [x]
+  (let [t (:t (meta x))]
     (cond
       (not (nil? t)) t
       (= (type x) long) 'long
       (number? x) 'real
-      :else nil
-      ))
-  )
+      :else nil)))
+
+;; defined later
+(def raise)
+(def cartesian)
+
+(defn ancesstors
+  "elem -> [symbol]"
+  [x]
+  (if (nil? x)
+    nil
+    (cons (atype x) (ancesstors (raise x)))))
+
+;; (defn apply-genric [op & args]
+;;   (loop [a-types (->> (map atype args)
+;;                       (map ancesstors)
+;;                       (apply cartesian))]
+;;     (if (empty? a-types)
+;;       (throw (Exception. (str "no method for these op args: " op " " (seq a-types))))
+;;       (let [proc (get-in @f-tbl [op (first a-types)])]
+;;         (if (not (nil? proc))
+;;           (apply proc args)
+;;           (recur (rest a-types)))))))
+
 
 (defn apply-genric [op & args]
   (let [a-types (map atype args)
@@ -29,22 +48,22 @@
       (throw (Exception. (str "no method for these op args: " op " " (seq a-types)))))))
 
 (defn install-complex []
-  (letfn [(sq[x] (* x x))
-          (real[z] (first z))
-          (img[z] (second z))
-          (make[r i] ^{:t 'complex} [r i])
-          (magn[z] (Math/sqrt (+ (sq (real z)) (sq (img z)))))
-          (angle[z] (Math/atan (/ (img z) (real z))))
+  (letfn [(sq [x] (* x x))
+          (real [z] (first z))
+          (img [z] (second z))
+          (make [r i] ^{:t 'complex} [r i])
+          (magn [z] (Math/sqrt (+ (sq (real z)) (sq (img z)))))
+          (angle [z] (Math/atan (/ (img z) (real z))))
           (add [x y] (make (+ (real x) (real y)) (+ (img x) (img y))))
-          (mul[x y] (let [m (* (magn x) (magn y))
-                          a (+ (angle x) (angle y))
-                          r (* m (Math/cos a))
-                          i (* m (Math/sin a))]
-                      (make r i)))
+          (mul [x y] (let [m (* (magn x) (magn y))
+                           a (+ (angle x) (angle y))
+                           r (* m (Math/cos a))
+                           i (* m (Math/sin a))]
+                       (make r i)))
           ;; (coerce[x] (when (number? x) ^{:t real}[x]))
           ]
     ;; (put 'coerce '(complex) coerce)
-    (put 'raise '(complex) (fn[x] nil))
+    (put 'raise '(complex) (fn [x] nil))
     (put 'make '(real real) make)
     (put 'real '(complex) real)
     (put 'img '(complex) img)
@@ -52,30 +71,38 @@
     (put 'angle '(complex) angle)
     (put 'mul '(complex complex) mul)
     (put 'add '(complex complex) add)
-    'done
-    ))
+    'done))
+
 
 (install-complex)
 
 ;; (defn complex[r i] (let [r ^{:t 'real}[r]
 ;;                          i ^{:t 'real}[i]]
 ;;                      (apply-genric 'make r i)))
-(defn complex[r i] (apply-genric 'make r i))
-(defn real[z] (apply-genric 'real z))
-(defn img[z] (apply-genric 'img z))
-(defn magn[z] (apply-genric 'magn z))
-(defn mul[x y] (apply-genric 'mul x y))
-(defn add[x y] (apply-genric 'add x y))
+(defn complex [r i] (apply-genric 'make r i))
+(defn real [z] (apply-genric 'real z))
+(defn img [z] (apply-genric 'img z))
+(defn magn [z] (apply-genric 'magn z))
+(defn mul [x y] (apply-genric 'mul x y))
+(defn add [x y] (apply-genric 'add x y))
+(defn raise [x] (apply-genric 'raise x))
+
+(defn install-real[]
+    (put 'raise '(real) (fn[x] (complex x 0)))
+  'done
+  )
+(install-real)
 
 (testing
-  (let [z (complex 1 2)]
-    (is (= 1 (real z)))
-    (is (= 2 (img z)))
-    (is (= 5.0 (magn (complex 3 4))))
-    (is (= [4 6] (add z (complex 3 4))))
-    (is (= 10.0 (img (mul z (complex 3 4)))))
-    (is (= -5.0 (real (mul z (complex 3 4)))))
-    )
+ (let [z (complex 1 2)]
+   (is (= '(complex) (ancesstors z)))
+   (is (= '(real complex) (ancesstors 1)))
+   (is (= 1 (real z)))
+   (is (= 2 (img z)))
+   (is (= 5.0 (magn (complex 3 4))))
+   (is (= [4 6] (add z (complex 3 4))))
+   (is (= 10.0 (img (mul z (complex 3 4)))))
+   (is (= -5.0 (real (mul z (complex 3 4))))))
 
   (is (= nil (:t {})))
   (is (= nil (meta 1)))
@@ -89,31 +116,26 @@
     (is (= [1 2] x))
     (is (= {:hi true} (meta x)))
     (is (:hi (meta x)))
-    (is (= 'complex (:c (meta y))))
-    )
-  )
+    (is (= 'complex (:c (meta y))))))
 
 (defn cartesian
   ([xs ys]
-  (let [prod (fn[x] (map #(vec [x %]) ys))]
-    (mapcat prod xs)))
+   (let [prod (fn [x] (map #(vec [x %]) ys))]
+     (mapcat prod xs)))
 
   ([xs ys & zs]
-  (loop [xs (cartesian xs ys) zs zs]
-    (if (empty? zs)
-      xs
-      (recur (map #(concat (first %) (rest %)) (cartesian xs (first zs))) (rest zs)))
-    ))
-  )
+   (loop [xs (cartesian xs ys) zs zs]
+     (if (empty? zs)
+       xs
+       (recur (map #(concat (first %) (rest %)) (cartesian xs (first zs))) (rest zs))))))
 
 (testing
-  (is (= [] (cartesian [] [1 2])))
+ (is (= [] (cartesian [] [1 2])))
   (is (= [[1 3] [1 4]] (cartesian [1] [3 4])))
   (is (= [[1 3] [1 4] [2 3] [2 4]] (cartesian [1 2] [3 4])))
   (is (= [[1 3 5] [1 4 5] [2 3 5] [2 4 5]] (cartesian [1 2] [3 4] [5])))
   (is (= [[1 2 [1]] [1 2 [2]]] (cartesian [1] [2] [[1] [2]])))
-  (is (= (combo/cartesian-product [1 2] [3 4] [5 [6]]) (cartesian [1 2] [3 4] [5 [6]])))
-  )
+  (is (= (combo/cartesian-product [1 2] [3 4] [5 [6]]) (cartesian [1 2] [3 4] [5 [6]]))))
 ;; (swap! f-tbl assoc :t 0)
 
 ;; (defn ff ^{:x 'int} [x] (inc x))
@@ -129,9 +151,8 @@
 
 (comment
   (meta '())
-  (meta #' +)
-  (meta #' /)
+  (meta #'+)
+  (meta #'/)
   (flatten [[1] [2]])
   (flatten [[[1]] [2]])
-  (mapcat identity [[[1]] [2]])
-  )
+  (mapcat identity [[[1]] [2]]))
