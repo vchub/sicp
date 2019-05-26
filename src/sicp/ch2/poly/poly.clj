@@ -25,7 +25,7 @@
     'done
     ))
 
-(install-poly)
+;; (install-poly)
 
 (testing
   (let [z (arith/complex 1 2)]
