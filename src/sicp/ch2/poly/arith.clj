@@ -60,7 +60,8 @@
           (magn [z] (Math/sqrt (+ (sq (real z)) (sq (img z)))))
           (angle [z] (Math/atan (/ (img z) (real z))))
           (add [x y] (try-drop (make (+ (real x) (real y)) (+ (img x) (img y)))))
-          (sub [x y] (try-drop (make (- (real x) (real y)) (- (img x) (img y)))))
+          (negate [z] (apply make (map #(* -1 %) z)))
+          (sub [x y] (add x (negate y)))
           (make-mag-angle [m a] (make (* m (Math/cos a)) (* m (Math/sin a))))
           (mul [x y] (try-drop (let [m (* (magn x) (magn y))
                                      a (+ (angle x) (angle y))]
@@ -135,6 +136,7 @@
    ;; (is (= 0 (div 1 z)))
    ;; (is (= 0 (div (complex 1 1) z)))
    (is (= 2.0 (div 4 2)))
+   (is (= 2.0 (div 4.0 2/1)))
 
    (is (= [2 2] (add z 1)))
    (is (= [2 2] (add 1 z)))
