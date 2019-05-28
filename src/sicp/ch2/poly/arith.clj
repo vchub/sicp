@@ -58,8 +58,10 @@
   (letfn [(sq [x] (* x x))
           (real [z] (first z))
           (img [z] (second z))
-          (try-drop [z] (if (zero? (img z)) (real z) z))
           (make [r i] ^{:t 'complex} [r i])
+          (project [x] (real x))
+          ;; (try-drop [z] (if (= z (raise (project z))) (project z) z))
+          (try-drop [z] (if (zero? (img z)) (real z) z))
           (magn [z] (Math/sqrt (+ (sq (real z)) (sq (img z)))))
           (angle [z] (Math/atan (/ (img z) (real z))))
           (add [x y] (try-drop (make (+ (real x) (real y)) (+ (img x) (img y)))))
@@ -84,12 +86,16 @@
     (put 'add '(complex complex) add)
     (put 'sub '(complex complex) sub)
     (put 'div '(complex complex) div)
+    (put 'project '(complex) project)
+    (put 'try-drop '(complex) try-drop)
     'done))
 
 (install-complex)
 
 (defn complex [r i] (apply-genric 'make r i))
 (defn raise [x] (apply-genric 'raise x))
+;; (defn project [x] (apply-genric 'project x))
+;; (defn try-drop [x] (apply-genric 'try-drop x))
 
 (defn real [z] (apply-genric 'real z))
 (defn img [z] (apply-genric 'img z))
@@ -129,6 +135,7 @@
        (recur (map #(concat (first %) (rest %)) (cartesian xs (first zs))) (rest zs))))))
 
 (testing
+  (is (= (complex 1 1) (complex 1 1)))
  (let [z (complex 1 2)]
    (is (= '((1 2)) (ancesstors z)))
    (is (= '(1 (1 0)) (ancesstors 1)))
@@ -142,8 +149,9 @@
    (is (= 0 (sub z z)))
    ;; (is (= 0 (div 1 z)))
    ;; (is (= 0 (div (complex 1 1) z)))
+   (is (= 8.0 (mul 4 2)))
    (is (= 2.0 (div 4 2)))
-   (is (= 2.0 (div 4.0 2/1)))
+   ;; (is (= 2.0 (div 4.0 2/1)))
 
    (is (= [2 2] (add z 1)))
    (is (= [2 2] (add 1 z)))

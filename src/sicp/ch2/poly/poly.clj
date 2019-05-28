@@ -36,13 +36,12 @@
                        (make (:v x) (add-terms (:terms x) (:terms y)))
                        (throw (Exception. (str "Can't add Poly with different vars " (:v x) " " (:v y))))))
 
-          (mul-t [t ts] (map #(list (+ (p %) (p t)) (* (c %) (c t))) ts))
+          (mul-t [t ts] (map #(list (arith/add (p %) (p t)) (arith/mul (c %) (c t))) ts))
 
           (mul [x y] (if (same-v  x y)
                        (make (:v x)
                              (reduce add-terms
-                                     (map #(mul-t % (:terms y)) (:terms x))
-                                     ))
+                                     (map #(mul-t % (:terms y)) (:terms x))))
                        (throw (Exception. (str "Can't add terms " x y)))))]
 
     (put 'raise '(poly) (fn [x] nil))
@@ -67,12 +66,20 @@
    (is (= '((0 3)) (:terms (arith/add (poly 'x '((0 2))) (poly 'x '((0 1)))))))
    (is (= '((0 4) (1 1) (2 2)) (:terms (arith/add  p p2))))
 
-   (is (= '((1 2)) (mul-t  '(0 1) '((1 2)))))
-   (is (= '((2 4) (3 4)) (mul-t  '(1 2) '((1 2) (2 2)))))
-   (is (= (poly 'x '((0 2) (2 1))) (arith/mul p (poly 'x '((0 1))))))
-   (is (= (poly 'x '((1 2) (2 4) (3 1) (4 2))) (arith/mul p (poly 'x '((1 1) (2 2))))))
+   (is (= '((1 2.0)) (mul-t  '(0 1) '((1 2)))))
+   (is (= '((2 4.0) (3 4.0)) (mul-t  '(1 2) '((1 2) (2 2)))))
+   (is (= (poly 'x '((0 2.0) (2 1.0))) (arith/mul p (poly 'x '((0 1))))))
+   (is (= (poly 'x '((1 2.0) (2 4.0) (3 1.0) (4 2.0))) (arith/mul p (poly 'x '((1 1) (2 2)))))))
 
-   ))
+ (let [p (poly 'x '((1 (complex 1 1))))
+       yp (poly 'x '((1 p)))]
+   (is (= (poly 'x '((1 (complex 1 1)))) p))
+   (is (= (poly 'x '((0 1) (1 (complex 1 1)))) (arith/add p (poly 'x '((0 1))))))
+   ;; (is (= (poly 'x '((0 1) (1 (complex 1 1)))) (arith/add p yp)))
+   ;; (is (= (poly 'x '((0 1) (1 (complex 1 1)))) (arith/mul p (poly 'x '((0 1))))))
+   )
+
+ )
 
 ;; (swap! f-tbl assoc :b 1)
 ;; (testing
@@ -80,6 +87,7 @@
 ;;   (is (= 1 (:b @f-tbl)))
 ;;   (is (= 1 (:b @arith/f-tbl)))
 ;;   )
+
 
 (comment
   (letfn [(f [xs] (if (empty? xs) xs (cons (first xs) (f (rest xs)))))]
