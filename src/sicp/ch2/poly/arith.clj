@@ -10,11 +10,14 @@
   (swap! f-tbl assoc-in [op a-types] f))
 
 (defn atype [x]
-  (let [t (:t (meta x))]
+  (let [t (or
+            (:t (meta x))
+            (:t x))]
     (cond
       (not (nil? t)) t
-      (= (type x) long) 'long
+      ;; (= (type x) long) 'long
       (number? x) 'real
+      (symbol? x) 'symbol
       :else nil)))
 
 ;; defined later
@@ -132,6 +135,10 @@
    ;; (is (= '((real complex) (complex)) (map ancesstors [1 z])))
    ;; (is (= '((real complex) (complex complex)) (->> (map ancesstors [1 z])
    ;;                                         (apply cartesian))))
+
+   (is (= 1 (real 1)))
+   (is (= 0 (img 1)))
+
    (is (= 0 (sub z z)))
    ;; (is (= 0 (div 1 z)))
    ;; (is (= 0 (div (complex 1 1) z)))
@@ -194,6 +201,7 @@
   (log 3)
   (->> (map ancesstors [1 2]))
 
+  (= (type 1) Long)
   (meta '())
   (meta #'+)
   (meta #'/)
