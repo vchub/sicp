@@ -169,7 +169,13 @@
   (is (not (equal? (poly 'x [[1 1] [0 2]]) (poly 'x '([1 0] [0 2])))))
   ;; add
   (is (= 2 (add (poly 'x '((0 1) (1 2))) (poly 'x '((0 1) (1 -2))))))
-  )
+  (is (= (poly 'x '((0 2) (1 2))) (add 1 (poly 'x '((0 1) (1 2))))))
+  ;; TODO: fix negative
+  ;; (is (= (poly 'x '((1 2))) (add -1 (poly 'x '((0 1) (1 2))) )))
+  ;; mul
+  (is (= (poly 'x '((0 1) (2 -4))) (mul (poly 'x '((0 1) (1 2))) (poly 'x '((0 1) (1 -2))))))
+  (is (= (poly 'x '((0 2) (1 5) (2 2))) (mul (poly 'x '((0 1) (1 2))) (poly 'x '((0 2) (1 1))))))
+  (is (= (poly 'x '((0 4) (1 2))) (mul 2 (poly 'x '((0 2) (1 1)))))))
 
 (testing
  (is (= 8 (mul 4.0 2)))
