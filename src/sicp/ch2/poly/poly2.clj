@@ -25,6 +25,7 @@
 (def zero-e?)
 (def equal?)
 (def poly)
+(def repr)
 
 (defn log [x] (do (prn x) x))
 
@@ -69,6 +70,7 @@
 (defn project [x] (apply-genric 'project x))
 (defn zero-e? [x] (apply-genric 'zero-e? x))
 (defn equal? [x y] (apply-genric 'equal? x y))
+(defn repr[x] (apply-genric 'repr x))
 
 (defn install-real []
   (letfn [(add [x y] (+ x y))
@@ -80,6 +82,7 @@
     ;; (put 'raise '(real) (fn [x] nil))
     (put 'raise '(real) (fn [x] (poly 'x [[0 x]])))
     (put 'project '(real) long)
+    (put 'repr '(real) str)
     (put 'zero-e? '(real) zero?)
     (put 'equal? '(real real) =)
     (put 'add '(real real) add)
@@ -92,6 +95,7 @@
 (defn install-Long []
   (put 'raise '(Long) double)
   (put 'project '(Long) long)
+    (put 'repr '(Long) str)
   'done)
 
 (install-Long)
@@ -138,7 +142,9 @@
                          (make (:v x)
                                (reduce add-terms
                                        (map #(mul-t % (:terms y)) (:terms x))))
-                         (throw (Exception. (str "Can't add terms " x y)))))]
+                         (throw (Exception. (str "Can't add terms " x y)))))
+    (repr-p [x] (str (str (:v x)) " " (vector (fn[[p c]] (str p " " (repr c))) (:terms x))))
+          ]
 
     (put 'raise '(poly) (fn [x] nil))
     (put 'equal? '(poly poly) equal-p?)
@@ -147,6 +153,7 @@
     (put 'project '(poly) project)
     (put 'add '(poly poly) add-p)
     (put 'mul '(poly poly) mul-p)
+    (put 'repr '(poly) repr-p)
     ;; (put 'mul-t '(term poly) mul-t)
     'done))
 
@@ -155,6 +162,19 @@
 (defn poly [v terms] ((get-in @f-tbl '(make poly)) v terms))
 
 (testing
+  ;; (prn (poly 'x [[0 2] [2 3]]))
+  ;; (prn (repr (poly 'x [[0 2] [2 3]])))
+  (let [y (poly 'x [[0 2] [1 3]])]
+    (is (= (poly 'x [[0 2] [1 -2] [2 y]]) (add (poly 'x [[0 1] [2 y]]) (poly 'x '((0 1) (1 -2))))))
+    (is (= (poly 'x [[0 2] [1 -2] ]) (add 1 (poly 'x '((0 1) (1 -2))))))
+    (is (= (poly 'x [[0 -2] [1 -3] ]) (mul -1 y)))
+
+    (is (= (poly 'x [[0 1] [1 -1] [2 y] [3 (mul -1 y)]]) (mul (poly 'x [[0 1] [2 y]]) (poly 'x '((0 1) (1 -1))))))
+    )
+
+  (is (= (poly 'x '((0 2) (1 -2) (2 -2) )) (add (poly 'x [[0 1] [2 -2]]) (poly 'x '((0 1) (1 -2))))))
+  (is (= (poly 'x '((0 1) (1 -2) (2 -2) (3 4))) (mul (poly 'x [[0 1] [2 -2]]) (poly 'x '((0 1) (1 -2))))))
+
  (is (zero-e? (poly 'x '((1 0)))))
   (is (= '((0 1) (2 3)) (:terms (poly 'x '((1 0) (2 3) (0 1))))))
   ;; project
@@ -172,6 +192,7 @@
   (is (= (poly 'x '((0 2) (1 2))) (add 1 (poly 'x '((0 1) (1 2))))))
   ;; TODO: fix negative
   ;; (is (= (poly 'x '((1 2))) (add -1 (poly 'x '((0 1) (1 2))) )))
+
   ;; mul
   (is (= (poly 'x '((0 1) (2 -4))) (mul (poly 'x '((0 1) (1 2))) (poly 'x '((0 1) (1 -2))))))
   (is (= (poly 'x '((0 2) (1 5) (2 2))) (mul (poly 'x '((0 1) (1 2))) (poly 'x '((0 2) (1 1))))))
