@@ -44,11 +44,11 @@
    (is (= 1 (sq 'how-many-calls?)))
    (is (= 1 (sq 'how-many-calls?)))))
 
-(defn make-account
+(defn make-account-
   "psw, balance -> psw, message -> num"
   [psw b]
-  (let [b (atom b)
-        cnt (atom 0)
+  (let [cnt (atom 0)
+        balance (fn [] @b)
         withdraw (fn [x] (if (<= x @b)
                            (do (swap! b - x)
                                @b)
@@ -58,29 +58,48 @@
         call-cops (fn [] (prn "call-cops"))
 
         check-psw (fn [ps] (if (= psw ps)
-                             (do (swap! cnt (fn[x] 0)) true)
+                             (do (swap! cnt (fn [x] 0)) true)
                              (do (swap! cnt inc)
                                  (when (> @cnt 2) (call-cops))
                                  false)))
 
+        join-acc (fn [ps] (make-account- ps b))
+
         dispatch (fn [ps message]
                    (if (check-psw ps)
                      (condp = message
+                       'balance balance
                        'withdraw withdraw
                        'deposit deposit
+                       'join-acc join-acc
                        :else (throw (Exception. (str "unknown request MAKE-ACCOUNT message " message))))
-                     (fn[x] "Incorrect password")))]
-    dispatch ))
+                     (fn [x] "Incorrect password")))]
+    dispatch))
+
+(defn make-account
+  "psw, balance -> psw, message -> num"
+  [psw b]
+(make-account- psw (atom b))
+  )
+
+(defn make-joint-acc
+  [acc psw new-psw]
+  ((acc psw 'join-acc) new-psw))
 
 (testing
-  (let [a (make-account 'pass 5)]
-    (is (= 4 ((a 'pass 'withdraw) 1)))
-    (is (= "Incorrect password" ((a 'x 'withdraw) 1)))
-    (is (= "Incorrect password" ((a 'x 'withdraw) 1)))
+ (let [a (make-account 'pass 5)]
+   (is (= 4 ((a 'pass 'withdraw) 1)))
+   (is (= "Incorrect password" ((a 'x 'withdraw) 1)))
+   (is (= "Incorrect password" ((a 'x 'withdraw) 1)))
     ;; (is (= "Incorrect password" ((a 'x 'withdraw) 1)))
-    (is (= 3 ((a 'pass 'withdraw) 1)))
-    (is (= 6 ((a 'pass 'deposit) 3)))
-    ))
+   (is (= 3 ((a 'pass 'withdraw) 1)))
+   (is (= 6 ((a 'pass 'deposit) 3)))
+   ;; joint account
+   (let [b (make-joint-acc a 'pass 'new-psw)]
+
+     (is (= 6 ((a 'pass 'balance))))
+     (is (= 5 ((b 'new-psw 'withdraw) 1)))
+     (is (= 5 ((a 'pass 'balance)))))))
 
 (comment
   (defrecord T [t s])
