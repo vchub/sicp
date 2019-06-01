@@ -79,8 +79,7 @@
 (defn make-account
   "psw, balance -> psw, message -> num"
   [psw b]
-(make-account- psw (atom b))
-  )
+  (make-account- psw (atom b)))
 
 (defn make-joint-acc
   [acc psw new-psw]
@@ -101,7 +100,55 @@
      (is (= 5 ((b 'new-psw 'withdraw) 1)))
      (is (= 5 ((a 'pass 'balance)))))))
 
+(deftype A [^:volotile-mutable a])
+
+(testing
+  (let [x (A. 1)]
+    ;; (prn x)
+    (is (= 1 (.a x)))
+    ;; (set! (.a x) 2)
+    )
+  (do (def ^:dynamic a 2)
+      (is (= 2 a))
+      (binding [a 3]
+        (is (= 3 a))
+        (set! a 4)
+        (is (= 4 a))
+        )
+      ;; (set! a 3)
+      ))
+
+(defrecord Node [c nx])
+
+(defn add [q c]
+  (cond
+    (nil? q) (ref (Node. c nil))
+    (nil? (:nx @q)) (do
+                      (prn (:nx @q) c)
+                      (dosync (alter q update :nx (fn[x] (ref (Node. c nil))))))
+    :else (add (:nx q) c))
+  )
+
+(defn traverse [q]
+  (if (nil? q)
+    []
+    (conj (traverse (:nx q)) (:c @q))))
+
+
+(testing
+  (let [q (add nil 1)]
+    (add q 2)
+    (add q 3)
+    ;; (is (= [1 2] (traverse q)))
+    ))
+
+
+
+
+
 (comment
+  (let [+ -]
+    (+ 3 4))
   (defrecord T [t s])
   (meta ^{:t :hi} 's)
   (meta (with-meta 's {:t :hi}))
