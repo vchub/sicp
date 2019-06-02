@@ -7,9 +7,9 @@
   (t [p] "next accessor")
   (t! [p t] "t set")
   (last-pair [p])
-  (add [p h])
+  (add-last [p h])
   (to-list [p])
-  (append! [x y])
+  (append! [p y])
   (rev [p]))
 
 (deftype P [^:volatile-mutable h- ^:volatile-mutable t-]
@@ -22,7 +22,7 @@
                    (if (nil? (t p))
                      p
                      (recur (t p)))))
-  (add [p h] (t! (last-pair p) (P. h nil)))
+  (add-last [p h] (t! (last-pair p) (P. h nil)))
   (to-list [p] (cond
                  (nil? (t p)) (list (h p))
                  :else (conj (to-list (t p)) (h p))))
@@ -49,6 +49,22 @@
             st (concat (filter (fn[x] (and (not(visited x)) (P? x))) [(h x) (t x)]) st)]
         (recur st visited (inc cnt))))))
 
+(defn no-cycles? [l]
+  (let [iter (fn iter [l visited post-v]
+               ;; (prn l visited post-v)
+               (cond
+                (not (P? l)) true
+                (and (visited l) (not (post-v l))) false
+                (visited l) true
+                :else
+                (let [visited (conj visited l)
+                      res (and (iter (h l) visited post-v) (iter (t l) visited post-v))
+                      post-v (conj post-v l)]
+                  res)
+    ))]
+    (iter l #{} #{}))
+  )
+
 (defn cns [h p] (P. h p))
 (defn flip [f] (fn [& args] (apply f (reverse args))))
 
@@ -59,10 +75,15 @@
         ]
     (is (= [1 2] (to-list l1)))
     (is (= 2 (count-pairs l1)))
+    (is (no-cycles? l1))
     (is (= 3 (count-pairs l2)))
     (is (= 4 (count-pairs l3)))
+    (is (no-cycles? l2))
+    (is (no-cycles? l3))
+
     (t! (t l1) l3)
     (is (= 4 (count-pairs l3)))
+    (is (not (no-cycles? l3)))
     )
   )
 
