@@ -71,13 +71,10 @@
               (or (not (P? slow))
                   (not (P? fast))
                   (not (P? (t fast)))
-                  (not (P? (t (t fast))))
-                  ) false
+                  (not (P? (t (t fast))))) false
               (= (h slow) (h fast)) true
-              :else (recur (t slow) (t (t fast)))
-              ))]
+              :else (recur (t slow) (t (t fast)))))]
     (run l (t l))))
-
 
 (defn cns [h p] (P. h p))
 (defn flip [f] (fn [& args] (apply f (reverse args))))
@@ -101,10 +98,7 @@
    (t! (t l1) l3)
    (is (= 4 (count-pairs l3)))
    (is (not (no-cycles? l3)))
-   (is (cycle? l3))
-   )
- )
-
+   (is (cycle? l3))))
 
 (testing
  (is (not= (P. 1 nil) (P. 1 nil)))
