@@ -7,10 +7,13 @@
   (t [p] "next accessor")
   (t! [p t] "t set")
   (last-pair [p])
-  (add-last [p h])
+  (add-last! [p h])
   (to-list [p])
   (append! [p y])
   (rev [p]))
+
+;; implemented later
+(def P?)
 
 (deftype P [^:volatile-mutable h- ^:volatile-mutable t-]
   Pair
@@ -19,12 +22,13 @@
   (t [p] t-)
   (t! [_ t] (set! t- t))
   (last-pair [p] (loop [p p]
-                   (if (nil? (t p))
+                   (if (not (P? (t p)))
                      p
                      (recur (t p)))))
-  (add-last [p h] (t! (last-pair p) (P. h nil)))
+  (add-last! [p h] (t! (last-pair p) (P. h nil)))
   (to-list [p] (cond
                  (nil? (t p)) (list (h p))
+                 (not (P? (t p))) (list (h p) (t p))
                  :else (conj (to-list (t p)) (h p))))
 
   (append! [p y] (t! (last-pair p) y))
@@ -37,6 +41,9 @@
                  (recur t  x))))))
 
 (defn P? [x] (= P (type x)))
+(defn eq? [x y] (if (and (P? x) (P? y))
+                  (and (eq? (h x) (h y)) (eq? (t x) (t y)))
+                  (= x y)))
 
 (defn count-pairs [l]
   {:pre [(P? l)]}
@@ -80,25 +87,32 @@
 (defn flip [f] (fn [& args] (apply f (reverse args))))
 
 (testing
- (let [l1 (P. 1 (P. 2 nil))
-       l2 (P. 2 l1)
-       l3 (P. l1 l1)]
-   (is (= [1 2] (to-list l1)))
-   (is (= 2 (count-pairs l1)))
-   (is (no-cycles? l1))
-   (is (= 3 (count-pairs l2)))
-   (is (= 4 (count-pairs l3)))
-   (is (no-cycles? l2))
-   (is (no-cycles? l3))
+ (let [p (P. 1 2)]
+   (P? p)
+   (is (eq? (P. 1 2) (last-pair p)))
+   (is (eq? (P. 1 (P. 2 nil)) (P. 1 (P. 2 nil))))
 
-   (is (not (cycle? l1)))
-   (is (not (cycle? l2)))
-   (is (not (cycle? l3)))
+   (is (= [1 2] (to-list p))))
 
-   (t! (t l1) l3)
-   (is (= 4 (count-pairs l3)))
-   (is (not (no-cycles? l3)))
-   (is (cycle? l3))))
+  (let [l1 (P. 1 (P. 2 nil))
+        l2 (P. 2 l1)
+        l3 (P. l1 l1)]
+    (is (= [1 2] (to-list l1)))
+    (is (= 2 (count-pairs l1)))
+    (is (no-cycles? l1))
+    (is (= 3 (count-pairs l2)))
+    (is (= 4 (count-pairs l3)))
+    (is (no-cycles? l2))
+    (is (no-cycles? l3))
+
+    (is (not (cycle? l1)))
+    (is (not (cycle? l2)))
+    (is (not (cycle? l3)))
+
+    (t! (t l1) l3)
+    (is (= 4 (count-pairs l3)))
+    (is (not (no-cycles? l3)))
+    (is (cycle? l3))))
 
 (testing
  (is (not= (P. 1 nil) (P. 1 nil)))
