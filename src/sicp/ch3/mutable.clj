@@ -9,18 +9,19 @@
   (last-pair [p])
   (add-last! [p h])
   (to-list [p])
-  (append! [p y])
-  (rev [p]))
+  (append! [p y]))
 
 ;; implemented later
+
+
 (def P?)
 
-(deftype P [^:volatile-mutable h- ^:volatile-mutable t-]
+(deftype P [^:volatile-mutable -h ^:volatile-mutable -t]
   Pair
-  (h [_] h-)
-  (h! [_ h] (set! h- h))
-  (t [p] t-)
-  (t! [_ t] (set! t- t))
+  (h [_] -h)
+  (h! [_ h] (set! -h h))
+  (t [_] -t)
+  (t! [_ t] (set! -t t))
   (last-pair [p] (loop [p p]
                    (if (not (P? (t p)))
                      p
@@ -31,21 +32,32 @@
                  (not (P? (t p))) (list (h p) (t p))
                  :else (conj (to-list (t p)) (h p))))
 
-  (append! [p y] (t! (last-pair p) y))
-
-  (rev [p] (loop [x p y nil]
-             (if (nil? x)
-               y
-               (let [t (t x)]
-                 (t! x y)
-                 (recur t  x))))))
+  (append! [p y] (t! (last-pair p) y)))
 
 (defn P? [x] (= P (type x)))
 (defn eq? [x y] (if (and (P? x) (P? y))
-                  (and (eq? (h x) (h y)) (eq? (t x) (t y)))
+                  ;; (and (eq? (h x) (h y)) (eq? (t x) (t y)))
+                  (and (= (h x) (h y)) (= (t x) (t y)))
                   (= x y)))
 
-(def PP P)
+(defn deep-eq? [x y]
+  (loop [st [[x y]] visited #{}]
+    (if (empty? st)
+      true
+      (let [[[x y] & st] st]
+        (cond
+          (eq? x y) (recur st visited)
+          (and (P? x) (P? y) (not (visited x)) (not (visited y)))
+          (recur (conj st [(h x) (h y)] [(t x) (t y)])
+                 (conj visited (h x) (h y) (t x) (t y)))
+          :else false)))))
+
+(defn rev [p] (loop [x p y nil]
+                (if (nil? x)
+                  y
+                  (let [t (t x)]
+                    (t! x y)
+                    (recur t  x)))))
 
 (defn count-pairs [l]
   {:pre [(P? l)]}
@@ -89,12 +101,35 @@
 (defn flip [f] (fn [& args] (apply f (reverse args))))
 
 (testing
- (let [p (P. 1 2)]
-   (P? p)
-   (is (eq? (P. 1 2) (last-pair p)))
-   (is (eq? (P. 1 (P. 2 nil)) (P. 1 (P. 2 nil))))
+ (let [p1 (P. nil nil)]
+   (do
+     (h! p1 p1)
+     (t! p1 p1)
+     (is (eq? p1 p1))))
 
-   (is (= [1 2] (to-list p))))
+  (let [p1 (P. nil nil)
+        p2 (P. 1 p1)
+        p3 (P. 2 p2)]
+    (is (eq? p3 p3))
+    (do
+      (h! p1 p3)
+      (t! p1 p2)
+      (is (eq? p3 p3))))
+
+  (let [[[x y] & st] []]
+    (is (nil? x))
+    (is (nil? y))
+    (is (nil? st))))
+
+(testing
+ (is (= [1 '()] (to-list (P. 1 '()))))
+  (let [p (P. 1 2)]
+    (P? p)
+    (is (eq? (P. 1 2) (last-pair p)))
+    (is (not (eq? (P. 1 (P. 2 nil)) (P. 1 (P. 2 nil)))))
+    (is (deep-eq? (P. 1 (P. 2 nil)) (P. 1 (P. 2 nil))))
+
+    (is (= [1 2] (to-list p))))
 
   (let [l1 (P. 1 (P. 2 nil))
         l2 (P. 2 l1)

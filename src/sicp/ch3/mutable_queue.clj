@@ -13,17 +13,20 @@
                           (t! q n)))))
 
 (defn delete! [q] (when (not (empty-q? q)) (h! q (t (h q)))))
+(defn front [q] (h q))
 
 (defn make-queue
   ([] (P. nil nil))
   ([& xs] (let [q (make-queue)]
-            (doseq [y xs]
-              (insert! q y))
+            (doseq [x xs]
+              (insert! q x))
             q)))
 
 (testing
  (let [q1 (make-queue 1)
        q2 (make-queue 1 2 3)]
+   (is (p/eq? (P. 1 nil) (h q1)))
+   (is (p/eq? (P. 1 nil) (h q1)))
    (is (= [1] (p/to-list (h q1))))
    (is (= [1 2 3] (p/to-list (h q2))))
    (delete! q2)
