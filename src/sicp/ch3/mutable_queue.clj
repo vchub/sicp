@@ -12,8 +12,11 @@
                           (t! (t q) n)
                           (t! q n)))))
 
+;; TODO: delete rear if q has 1 element
 (defn delete! [q] (when (not (empty-q? q)) (h! q (t (h q)))))
-(defn front [q] (h q))
+
+(defn front [q] (when (not (empty-q? q)) (h (h q))))
+(defn rear [q] (when (not (empty-q? q)) (h (t q))))
 
 (defn make-queue
   ([] (P. nil nil))
@@ -25,6 +28,12 @@
 (testing
  (let [q1 (make-queue 1)
        q2 (make-queue 1 2 3)]
+   (is (nil? (front (make-queue))))
+   (is (nil? (rear (make-queue))))
+   (is (= 1 (front q1)))
+   (is (= 1 (rear q1)))
+   (is (= 1 (front q2)))
+   (is (= 3 (rear q2)))
    (is (p/eq? (P. 1 nil) (h q1)))
    (is (p/eq? (P. 1 nil) (h q1)))
    (is (= [1] (p/to-list (h q1))))
