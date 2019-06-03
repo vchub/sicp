@@ -45,6 +45,8 @@
                   (and (eq? (h x) (h y)) (eq? (t x) (t y)))
                   (= x y)))
 
+(def PP P)
+
 (defn count-pairs [l]
   {:pre [(P? l)]}
   (loop [st [l] visited #{} cnt 0]
