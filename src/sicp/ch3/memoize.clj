@@ -17,12 +17,11 @@
                              (+ (m-fib (- n 1)) (m-fib (- n 2)))))))
 
 (def fib (memoize (fn [n] (condp = n
-                             0 1
-                             1 1
-                             (+ (fib (- n 1)) (fib (- n 2)))))))
+                            0 1
+                            1 1
+                            (+ (fib (- n 1)) (fib (- n 2)))))))
 (testing
  (is (= 1 (m-fib 0)))
   (is (= 1 (m-fib 0)))
   (is (= 5 (m-fib 4)))
-  (is (= 8 (fib 5)))
-  )
+  (is (= 8 (fib 5))))
