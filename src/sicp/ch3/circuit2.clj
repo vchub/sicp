@@ -32,42 +32,6 @@
     ;; (set-time! agenda 0)
     t))
 
-(deftest test-agenda
-
-  (testing "agenda"
-    (let [ag (make-agenda)
-          cnt (atom 0)]
-      (conj-act! ag (fn [] (swap! cnt inc)) 1)
-      (conj-act! ag (fn [] (swap! cnt inc)) 1)
-      (conj-act! ag (fn [] (swap! cnt inc)) 4)
-      (propagate! ag)
-      (is (= 3 @cnt))
-      (is (= 4 (get-time ag)))
-      (propagate! ag)
-      (is (= 3 @cnt))
-      (is (= 4 (get-time ag))))
-
-    (let [ag (make-agenda)]
-      (is (= nil (get-first ag)))
-      (conj-act! ag (constantly 1) 1)
-      (conj-act! ag (constantly 2) 1)
-      (conj-act! ag (constantly 5) 3)
-      (let [[t acts] (get-first ag)]
-        (is (= 1 t))
-        (is (= 2 (count acts)))
-        (is (= 1 ((first acts))))
-        (is (= 2 ((second acts)))))
-      (remove-first! ag)
-      (is (= 3 (first (get-first ag))))))
-
-  (testing "map"
-    (let [m (sorted-map)
-          m (update m 0 (fnil conj []) 1)]
-      (is (= [1] (get m 0)))
-      (is (= nil (get (dissoc m (first (first m))) 0))))))
-
-(test-agenda)
-
 (def agenda (make-agenda))
 
 (defn after-delay [dt f] (fn [] (conj-act! agenda f dt)))
@@ -84,7 +48,8 @@
                    (doseq [act (:actions @w)]
                      (act))))
 
-(defn add-act! [w f] (swap! w update :actions conj f))
+(defn add-act! [w f] (swap! w update :actions conj f)
+  (f))
 
 ;; DELAYS
 (def inverter-delay 1)
@@ -93,18 +58,18 @@
 
 (defn inverter [in out]
   (letfn [(act [] (sig! out (b-not (sig in))))]
-    (act)
+    ;; (act)
     (add-act! in (after-delay inverter-delay act))))
 
 (defn and-gate [a b out]
   (letfn [(act [] (sig! out (bit-and (sig a) (sig b))))]
-    (act)
+    ;; (act)
     (add-act! a (after-delay and-delay act))
     (add-act! b (after-delay and-delay act))))
 
 (defn or-gate [a b out]
   (letfn [(act [] (sig! out (bit-or (sig a) (sig b))))]
-    (act)
+    ;; (act)
     (add-act! a (after-delay or-delay act))
     (add-act! b (after-delay or-delay act))))
 
@@ -234,21 +199,21 @@
           inv (inverter a b)
           t0 (get-time agenda)]
       (is (= 0 (sig a)))
-      (is (= 1 (sig b)))
+      (is (= 0 (sig b)))
       (let [t0 (get-time agenda)]
         (propagate! agenda)
         (is (= 1 (sig b)))
-        (is (= 0 (- (get-time agenda) t0))))
+        (is (= 1 (- (get-time agenda) t0))))
 
       (sig! a 1)
       (propagate! agenda)
       (is (= 0 (sig b)))
-      (is (= 1 (- (get-time agenda) t0)))
+      (is (= 2 (- (get-time agenda) t0)))
 
       (sig! a 0)
       (propagate! agenda)
       (is (= 1 (sig b)))
-      (is (= 2 (- (get-time agenda) t0)))))
+      (is (= 3 (- (get-time agenda) t0)))))
 
   (testing "wire"
     (let [a (make-wire)
@@ -257,26 +222,62 @@
           delayed-act (after-delay 1 act)]
       (add-act! a act)
       (is (= 0 (sig a)))
-      (is (= 0 @cnt))
+      (is (= 1 @cnt))
       (sig! a 1)
       (is (= 1 (sig a)))
-      (is (= 1 @cnt))
+      (is (= 2 @cnt))
 
       (sig! a 1)
       (is (= 1 (sig a)))
-      (is (= 1 @cnt))
+      (is (= 2 @cnt))
 
       (sig! a 0)
       (is (= 0 (sig a)))
-      (is (= 2 @cnt))
+      (is (= 3 @cnt))
 
       (add-act! a delayed-act)
       (sig! a 1)
       (is (= 1 (sig a)))
       (propagate! agenda)
-      (is (= 4 @cnt)))))
+      (is (= 6 @cnt)))))
 
 (run-test)
+
+(deftest test-agenda
+
+  (testing "agenda"
+    (let [ag (make-agenda)
+          cnt (atom 0)]
+      (conj-act! ag (fn [] (swap! cnt inc)) 1)
+      (conj-act! ag (fn [] (swap! cnt inc)) 1)
+      (conj-act! ag (fn [] (swap! cnt inc)) 4)
+      (propagate! ag)
+      (is (= 3 @cnt))
+      (is (= 4 (get-time ag)))
+      (propagate! ag)
+      (is (= 3 @cnt))
+      (is (= 4 (get-time ag))))
+
+    (let [ag (make-agenda)]
+      (is (= nil (get-first ag)))
+      (conj-act! ag (constantly 1) 1)
+      (conj-act! ag (constantly 2) 1)
+      (conj-act! ag (constantly 5) 3)
+      (let [[t acts] (get-first ag)]
+        (is (= 1 t))
+        (is (= 2 (count acts)))
+        (is (= 1 ((first acts))))
+        (is (= 2 ((second acts)))))
+      (remove-first! ag)
+      (is (= 3 (first (get-first ag))))))
+
+  (testing "map"
+    (let [m (sorted-map)
+          m (update m 0 (fnil conj []) 1)]
+      (is (= [1] (get m 0)))
+      (is (= nil (get (dissoc m (first (first m))) 0))))))
+
+(test-agenda)
 
 (comment
   (first (sorted-map 1 2))
