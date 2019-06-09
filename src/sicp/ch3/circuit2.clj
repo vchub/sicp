@@ -89,7 +89,94 @@
     (half-adder a s1 s c2)
     (or-gate c1 c2 c-out)))
 
+(defn ripple-carry [as bs ss c-out]
+  (loop [as as bs bs ss ss
+         cs (concat (map (fn [x] (make-wire)) (range (- (count as) 1))) [c-out])
+         c (make-wire)]
+    (when-not (empty? as)
+      ;; (prn as)
+      ;; (prn (count as) (count bs) (count cs))
+      (adder (first as) (first bs) c (first ss) (first cs))
+      (recur (rest as) (rest bs) (rest ss) (rest cs) (first cs)))))
+
+(defn make-wire-vec [n] (vec (map (fn [x] (make-wire)) (range n))))
+
+(defn int->bit-vec [n vec-len]
+  (loop [n n acc []]
+    (if (zero? n)
+      (if (< (count acc) vec-len)
+        (concat (repeat (- vec-len (count acc)) 0) acc)
+        acc)
+      (recur (bit-shift-right n 1) (cons (bit-and n 1) acc)))))
+
+(defn set-wires!  "[wire], [bit] -> nil"
+  [ws xs]
+  (vec (map (fn [w b] (sig! w b)) ws (reverse xs))))
+
+(defn prob-wires  "[wire] -> [bit]"
+  [ws]
+  (map (fn [w] (sig w)) ws))
+
+(defn wires-vec->int [ws] (reduce (fn [acc x] (+ x (* 2 acc))) ws))
+
+(defn small-int-adder "8-bit ripple-carry adder" [x y]
+  (let [n 8
+        as (make-wire-vec n)
+        bs (make-wire-vec n)
+        ss (make-wire-vec n)
+        c-out (make-wire)
+        gate (ripple-carry as bs ss c-out)
+        t0 (get-time agenda)
+        xs (int->bit-vec x n)
+        ys (int->bit-vec y n)]
+
+    (set-wires! as xs)
+    (set-wires! bs ys)
+    (propagate! agenda)
+    ;; (prn "t0" t0)
+    ;; (prn "t1" (get-time agenda))
+    (->> (reverse (prob-wires ss))
+         (wires-vec->int))))
+
 (deftest test-adders
+  (testing "small-int-adder"
+    (is (= 2 (small-int-adder 1 1)))
+    (is (= 3 (small-int-adder 2 1)))
+    (is (= 17 (small-int-adder 2 15))))
+
+  (testing "int->bit-vec"
+    (is (= [0 1] (int->bit-vec 1 2)))
+    (is (= [0 0 1 1] (int->bit-vec 3 4))))
+
+  (testing "ripple-carry"
+    (let [n 2
+          as (make-wire-vec n)
+          bs (make-wire-vec n)
+          ss (make-wire-vec n)
+          c-out (make-wire)
+          gate (ripple-carry as bs ss c-out)
+          t0 (get-time agenda)]
+
+      (sig! (nth as 0) 1)
+      (propagate! agenda)
+      (is (= 1 (sig (nth ss 0))))
+      (is (= 0 (sig c-out)))
+      (is (= (+ and-delay inverter-delay and-delay) (- (get-time agenda) t0)))
+
+      (sig! (nth bs 0) 1)
+      (propagate! agenda)
+      (is (= 0 (sig (nth ss 0))))
+      (is (= 1 (sig (nth ss 1))))
+      (is (= 0 (sig c-out)))
+      (is (= (* 5 (+ and-delay inverter-delay and-delay)) (- (get-time agenda) t0)))
+
+      (sig! (nth as 1) 1)
+      (propagate! agenda)
+      (is (= 0 (sig (nth ss 0))))
+      (is (= 0 (sig (nth ss 1))))
+      (is (= 1 (sig c-out)))
+      (is (= (* 6 (+ and-delay inverter-delay and-delay)) (- (get-time agenda) t0)))))
+
   (testing "adder"
     (let [a (make-wire)
           b (make-wire)
@@ -191,7 +278,14 @@
       (sig! b 1)
       (propagate! agenda)
       (is (= (* 2 and-delay) (- (get-time agenda) t0)))
-      (is (= 1 (sig out)))))
+      (is (= 1 (sig out)))
+
+      (sig! a 0)
+      (sig! b 1)
+      (sig! a 1)
+      (sig! b 0)
+      (propagate! agenda)
+      (is (= 0 (sig out)))))
 
   (testing "inverter"
     (let [a (make-wire)
@@ -282,4 +376,7 @@
 (comment
   (first (sorted-map 1 2))
   (first (sorted-map))
-  (let [[x y] nil] [x y]))
+  (let [[x y] nil] [x y])
+  (doseq [a [1 2] b [3 4]]
+    (prn a b))
+  (map (fn [x y] (prn x y) [x y]) [1 2] [3 4]))
