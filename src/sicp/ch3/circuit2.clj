@@ -1,4 +1,4 @@
-(ns sicp.ch3.circuit
+(ns sicp.ch3.circuit2
   (:require [clojure.test :refer :all]
             [clojure.core.async :as a :refer [<! >! <!! >!! go chan timeout]]))
 
@@ -15,15 +15,24 @@
 (defn conj-act! [agenda act dt]
   (swap! agenda update :acts update (+ (get-time agenda) dt) (fnil conj []) act))
 
-(defn propagate!
+(defn run-firsts-acts!
   "run first of :acts, remove them and set a new current time"
   [agenda]
-  (let [[t acts] (get-first agenda)]
-    (doseq [act acts] (act))
-    (set-time! agenda t)
-    (remove-first! agenda)))
+  (if-let [[t acts] (get-first agenda)]
+    (do (set-time! agenda t)
+        (remove-first! agenda)
+        (doseq [act acts] (act)))))
 
-(deftest agenda
+(defn propagate!
+  "run all agenda :acts, return the last time"
+  [agenda]
+  (while (not (empty? (get-first agenda)))
+    (run-firsts-acts! agenda))
+  (let [t (get-time agenda)]
+    ;; (set-time! agenda 0)
+    t))
+
+(deftest test-agenda
 
   (testing "agenda"
     (let [ag (make-agenda)
@@ -32,8 +41,8 @@
       (conj-act! ag (fn [] (swap! cnt inc)) 1)
       (conj-act! ag (fn [] (swap! cnt inc)) 4)
       (propagate! ag)
-      (is (= 2 @cnt))
-      (is (= 1 (get-time ag)))
+      (is (= 3 @cnt))
+      (is (= 4 (get-time ag)))
       (propagate! ag)
       (is (= 3 @cnt))
       (is (= 4 (get-time ag))))
@@ -57,11 +66,11 @@
       (is (= [1] (get m 0)))
       (is (= nil (get (dissoc m (first (first m))) 0))))))
 
-(agenda)
+(test-agenda)
 
-(defn after-delay [dt f] (fn [] (go
-                                  (<! (timeout dt))
-                                  (f))))
+(def agenda (make-agenda))
+
+(defn after-delay [dt f] (fn [] (conj-act! agenda f dt)))
 
 (defn b-not [x] {:pre [(#{0 1} x)]} (bit-flip x 0))
 
@@ -74,15 +83,13 @@
                    (swap! w assoc :state x)
                    (doseq [act (:actions @w)]
                      (act))))
-;; (defn sig! [w x] (swap! w assoc :state x)
-;;   ((:action @w)))
 
 (defn add-act! [w f] (swap! w update :actions conj f))
 
 ;; DELAYS
 (def inverter-delay 1)
-(def and-delay 1)
-(def or-delay 1)
+(def and-delay 2)
+(def or-delay 3)
 
 (defn inverter [in out]
   (letfn [(act [] (sig! out (b-not (sig in))))]
@@ -98,8 +105,8 @@
 (defn or-gate [a b out]
   (letfn [(act [] (sig! out (bit-or (sig a) (sig b))))]
     (act)
-    (add-act! a (after-delay and-delay act))
-    (add-act! b (after-delay and-delay act))))
+    (add-act! a (after-delay or-delay act))
+    (add-act! b (after-delay or-delay act))))
 
 (defn half-adder [a b s c]
   (let [d (make-wire)
@@ -124,20 +131,22 @@
           c-in (make-wire)
           s (make-wire)
           c-out (make-wire)
-          gate (adder a b c-in s c-out)]
+          gate (adder a b c-in s c-out)
+          t0 (get-time agenda)]
 
       (sig! a 1)
-      (Thread/sleep (* 5 and-delay))
+      (propagate! agenda)
       (is (= 1 (sig s)))
       (is (= 0 (sig c-out)))
+      (is (= (+ and-delay inverter-delay and-delay) (- (get-time agenda) t0)))
 
       (sig! b 1)
-      (Thread/sleep (* 8 and-delay))
+      (propagate! agenda)
       (is (= 0 (sig s)))
       (is (= 1 (sig c-out)))
 
       (sig! c-in 1)
-      (Thread/sleep (* 10 and-delay))
+      (propagate! agenda)
       (is (= 1 (sig s)))
       (is (= 1 (sig c-out)))))
 
@@ -146,23 +155,24 @@
           b (make-wire)
           c (make-wire)
           s (make-wire)
-          gate (half-adder a b s c)]
+          gate (half-adder a b s c)
+          t0 (get-time agenda)]
       (is (= 0 (sig c)))
       (is (= 0 (sig s)))
 
       (sig! a 1)
-      ;; (sig! b 0)
-      (Thread/sleep (* 3 and-delay))
+      (propagate! agenda)
       (is (= 1 (sig s)))
       (is (= 0 (sig c)))
+      (is (= (+ and-delay inverter-delay and-delay) (- (get-time agenda) t0)))
 
       (sig! b 1)
-      (Thread/sleep (* 4 and-delay))
+      (propagate! agenda)
       (is (= 0 (sig s)))
       (is (= 1 (sig c)))
 
       (sig! a 0)
-      (Thread/sleep (* 4 and-delay))
+      (propagate! agenda)
       (is (= 1 (sig s)))
       (is (= 0 (sig c))))))
 
@@ -174,61 +184,71 @@
     (let [a (make-wire)
           b (make-wire)
           out (make-wire)
-          gate (or-gate a b out)]
+          gate (or-gate a b out)
+          t0 (get-time agenda)]
       (is (= 0 (sig a)))
       (is (= 0 (sig b)))
       (is (= 0 (sig out)))
 
       (sig! a 1)
-      (Thread/sleep (* 2 inverter-delay))
+      (propagate! agenda)
       (is (= 1 (sig out)))
+      (is (= or-delay (- (get-time agenda) t0)))
 
       (sig! b 1)
-      (Thread/sleep (* 2 inverter-delay))
+      (propagate! agenda)
       (is (= 1 (sig out)))
+      (is (= (* 2 or-delay) (- (get-time agenda) t0)))
 
       (sig! b 0)
-      (Thread/sleep (* 2 inverter-delay))
+      (propagate! agenda)
       (is (= 1 (sig out)))
       (sig! a 0)
-      (Thread/sleep (* 2 inverter-delay))
+      (propagate! agenda)
       (is (= 0 (sig out)))))
 
   (testing "and-gate"
     (let [a (make-wire)
           b (make-wire)
           out (make-wire)
-          gate (and-gate a b out)]
+          gate (and-gate a b out)
+          t0 (get-time agenda)]
       (is (= 0 (sig a)))
       (is (= 0 (sig b)))
       (is (= 0 (sig out)))
+      (is (= 0 (- (get-time agenda) t0)))
 
       (sig! a 1)
-      (Thread/sleep (* 2 inverter-delay))
+      (propagate! agenda)
       (is (= 0 (sig out)))
+      (is (= and-delay (- (get-time agenda) t0)))
 
       (sig! b 1)
-      (Thread/sleep (* 2 inverter-delay))
+      (propagate! agenda)
+      (is (= (* 2 and-delay) (- (get-time agenda) t0)))
       (is (= 1 (sig out)))))
 
   (testing "inverter"
     (let [a (make-wire)
           b (make-wire)
-          inv (inverter a b)]
+          inv (inverter a b)
+          t0 (get-time agenda)]
       (is (= 0 (sig a)))
       (is (= 1 (sig b)))
-      (Thread/sleep (* 2 inverter-delay))
-      (is (= 1 (sig b)))
+      (let [t0 (get-time agenda)]
+        (propagate! agenda)
+        (is (= 1 (sig b)))
+        (is (= 0 (- (get-time agenda) t0))))
 
       (sig! a 1)
-      ;; (is (= 0 (sig b)))
-      (Thread/sleep (* 2 inverter-delay))
+      (propagate! agenda)
       (is (= 0 (sig b)))
+      (is (= 1 (- (get-time agenda) t0)))
 
       (sig! a 0)
-      ;; (is (= 0 (sig b)))
-      (Thread/sleep (* 3 inverter-delay))
-      (is (= 1 (sig b)))))
+      (propagate! agenda)
+      (is (= 1 (sig b)))
+      (is (= 2 (- (get-time agenda) t0)))))
 
   (testing "wire"
     (let [a (make-wire)
@@ -253,42 +273,12 @@
       (add-act! a delayed-act)
       (sig! a 1)
       (is (= 1 (sig a)))
-      ;; (is (= 2 @cnt))
-      ;; (after-delay 100 (fn[]
-      ;;                    (is (= 1 2))))
-      (Thread/sleep 2)
-      (is (= 4 @cnt))))
-
-  (testing "bitwise"
-    (are [x y] (= x y)
-      0 (bit-and 0 0)
-      0 (bit-and 1 0)
-      1 (bit-and 1 1)
-      1 (bit-or 0 1)
-      -1 (bit-not 0)
-      -2 (bit-not 1)
-      1 (or 1 0)
-      0 (or 0 1)
-      1 (b-not 0)
-      0 (b-not 1))
-    (is (thrown? AssertionError (b-not 3)))))
+      (propagate! agenda)
+      (is (= 4 @cnt)))))
 
 (run-test)
 
 (comment
-  (let [m (sorted-map 3 4 1 2 2 1)]
-    (first m))
-  (let [m {3 4 1 2 2 1}]
-    (first m))
-  (type Double)
-  (class Double)
-  (type (Double. 1.0))
-  (= (type 2.0) (type (Double. 1.0)))
-  (doto (java.util.HashMap.)
-    (.put 'a 1)
-    (.put 'b 2)
-    (println))
-
-  (.. (java.util.Date.) getTime toString)
-  ((constantly 5))
-  (#{1 2} 0))
+  (first (sorted-map 1 2))
+  (first (sorted-map))
+  (let [[x y] nil] [x y]))

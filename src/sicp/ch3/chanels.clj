@@ -32,6 +32,7 @@
 
 (deftest run-test
 
+
   (testing "after-delay-ex"
     (let [f (fn [msg] (prn "in f-ex" msg))]
       (prn "before delay ex")
@@ -55,6 +56,20 @@
     ;; (>!! c "foo")
       (go (>! c "foo"))
       (is (= "FOO" (<!! (uc c)))))
+
+    (testing "timeout"
+      (let [c (chan)]
+
+      (a/take! (go 1) (fn[x] (prn "from go" x)))
+      (is (= 1 (<!! (go 1))))
+
+      (go (<! (timeout 40)) (>! c 4))
+      (go (<! (timeout 1)) (>! c 1))
+      (is (= 1 (<!! c)))
+      (is (= 4 (<!! c)))
+      (a/close! c)
+      )
+      )
 
     (let [c (chan 10)]
       (>!! c 'hi)
