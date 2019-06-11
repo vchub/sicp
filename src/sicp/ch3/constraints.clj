@@ -13,7 +13,7 @@
   ;; (can-set? [_ w])
   ;; (new-val [_] "box -> bool, true if new val is set"))
   (new-val [_] "box -> nil")
-  (del-val [_] "box -> nil"))
+  (del-val [_ w] "box -> nil"))
 
 ;; (defn -can-set? [& ws]
 ;;   (= 1 (count (filter (complement has-val?) ws))))
@@ -27,10 +27,10 @@
 (def log prn)
 
 (defrecord Wire [v boxes w-name]
-  Object
+  ;; Object
   IWire
 
-  (toString [_] (str "Wire v: " @v " w-name " w-name))
+  ;; (toString [_] (str "Wire v: " @v " w-name " w-name))
   (get-val [_] @v)
   (has-val? [_] (some? @v))
   (add-box! [_ b] (swap! boxes conj b))
@@ -68,7 +68,7 @@
   (del-val! [w sender-box]
     (reset! v nil)
     (doseq [b (filter #(not= % sender-box) @boxes)]
-      (del-val b))))
+      (del-val b w))))
 
 (defn make-wire [w-name] (Wire. (atom nil) (atom []) w-name))
 
@@ -78,9 +78,9 @@
                  (nil? (get-val w)) (set-val! w _ c)
                  (not= (get-val w) c) (throw (Exception. (str "new-val for Const " c "wire " w)))))
 
-  (del-val [b] (if (nil? (get-val w))
-                 (set-val! w b c)
-                 (throw (Exception. (str "del-val for Const " c "wire " w))))))
+  (del-val [b _] (if (nil? (get-val w))
+                   (set-val! w b c)
+                   (throw (Exception. (str "del-val for Const " c "wire " w))))))
 
 (defn make-const [c w]
   (let [b (Const. c w)]
@@ -102,16 +102,55 @@
         (and b c) (set-val! w-a box (- c b))
         :else true)))
 
-  (del-val [b]
-    (doseq [w [w-a w-b w-c]]
+  (del-val [b w]
+    (doseq [w (filter #(not= % w) [w-a w-b w-c])]
+    ;; (doseq [w  [w-a w-b w-c]]
       (del-val! w b))
-    (new-val b)))
+    ;; (new-val b)
+    ))
 
 (defn make-add [a b c]
   (let [box (Add. a b c)]
     (doseq [w [a b c]] (add-box! w box))))
 
 (deftest test-boxes
+
+  (testing "Adds and Consts"
+
+    (let [a (make-wire 'a)
+          b (make-wire 'b)
+          c (make-wire 'c)
+          add (make-add a b c)
+          c-a (make-const 1 a)
+          ;; c-b (make-const 2 b)
+          d (make-wire 'd)
+          e (make-wire 'e)
+          add (make-add c d e)]
+      (is (nil? (get-val e)))
+      (set-val! d 'user 3)
+      (is (nil? (get-val e)))
+      (set-val! e 'user 6)
+      (is (= 2 (get-val b)))
+
+      ;; (is (= 6 (get-val e)))
+      (del-val! e 'user)
+      (del-val! d 'user)
+      (is (nil? (get-val e)))
+      (is (nil? (get-val b))))
+
+    (let [a (make-wire 'a)
+          b (make-wire 'b)
+          c (make-wire 'c)
+          add (make-add a b c)
+          c-a (make-const 1 a)
+          c-b (make-const 2 b)
+          d (make-wire 'd)
+          e (make-wire 'e)
+          add (make-add c d e)
+          d-a (make-const 3 d)]
+      (is (= 6 (get-val e)))
+      (del-val! e 'user)
+      (is (= 6 (get-val e)))))
 
   (testing "Add and Const"
     (let [a (make-wire 'a)
@@ -124,7 +163,13 @@
       (set-val! b 'user 2)
       (is (= 3 (get-val c)))
       (is (thrown? Exception (set-val! b 'user 4)))
-      (del-val! c 'user)
+      ;; (del-val! b 'user)
+      ;; (del-val! c 'user)
+      (del-val! a 'user)
+      ;; (is (= 2 (get-val b)))
+      ;; (is (= 3 (get-val c)))
+      ;; (is (nil? (get-val c)))
+      ;; (is (nil? (get-val c)))
       (is (every? nil? (map get-val [b c])))
       (is (= 1 (get-val a)))
       (set-val! c 'user 2)
@@ -135,10 +180,7 @@
       ;; (del-val! b 'user)
       (make-const 1 b)
       (del-val! c 'user)
-      (is (= 2 (get-val c)))
-      ;; (is (thrown? Exception (set-val! c 'user 3)))
-      ;; (is (= 2 (get-val c)))
-      ))
+      (is (= 2 (get-val c)))))
 
   (testing "Add"
     (let [a (make-wire 'a)
