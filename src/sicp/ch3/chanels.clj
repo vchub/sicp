@@ -1,6 +1,6 @@
 (ns sicp.ch3.chanels
   (:require [clojure.test :refer :all]
-            [clojure.core.async :as a :refer [<! >! <!! >!! go chan timeout]])
+            [clojure.core.async :as a :refer [<! >! <!! >!! go go-loop chan timeout]])
   (:import (java.util.concurrent ScheduledThreadPoolExecutor TimeUnit)))
 
 ;; (defn after-delay [dt f] (a/thread (Thread/sleep dt) (f)))
@@ -30,9 +30,33 @@
           acc)
         (recur (inc i) (conj acc (<!! c)))))))
 
+(defn primes-chan "-> chan of primes" []
+  (let [integers (chan)
+       primes (chan)]
+    (go-loop [i 2] (>! integers i) (recur (inc i)))
+    (go-loop [cur-ch integers]
+             (let [prime (<! cur-ch)
+                   new-ch (chan 1 (filter #(pos? (mod % prime))))]
+               (>! primes prime)
+               (a/pipe cur-ch new-ch)
+               (recur new-ch))
+             )
+    primes
+    ))
+
+(deftest test-primes
+  (testing "primes"
+    (let [pc (primes-chan)]
+      (is (= 2 (<!! pc)))
+      (is (= 3 (<!! pc)))
+      (is (= 5 (<!! pc)))
+      (is (= [7 11 13 17] (<!! (a/into [] (a/take 4 pc)))))
+      (is (= [0 1 2 3] (<!! (a/into [] (a/to-chan (range 4))))))
+      )))
+
+(test-primes)
+
 (deftest run-test
-
-
   (testing "after-delay-ex"
     (let [f (fn [msg] (prn "in f-ex" msg))]
       (prn "before delay ex")
