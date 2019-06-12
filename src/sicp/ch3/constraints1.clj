@@ -130,7 +130,51 @@
       (doseq [w ws] (connect w me))
       me)))
 
+(defn cv "v -> wc" [v]
+  (let [c (wire)]
+    (const c v)
+    c))
+
+(defn c+ "wa, wb -> wc"
+  [a b]
+  (let [c (wire)]
+    (adder a b c)
+    c))
+
+(defn c* "wa, wb -> wc"
+  [a b]
+  (let [c (wire)]
+    (multiplyer a b c)
+    c))
+
+(defn celsius-fahrenheit-converter-1 "wc -> wf"
+  [a]
+  (c+ (cv 32) (c* a (c* (cv 9) (cv 1/5)))))
+
 (deftest test-wire
+
+  (testing "celsius-fahrenheit-converter-1"
+    (let [c (wire)
+          f (celsius-fahrenheit-converter-1 c)]
+      (set-v! c 25 'user)
+      (is (= 77 (get-v f)))
+      (forget-v! c 'user)
+      (set-v! f 25 'user)
+      (is (= -35/9 (get-v c)))))
+
+  (testing "c+"
+    (let [a (wire)
+          b (cv 6)
+          c (c+ a b)
+          m (c* a b)]
+      (is (= nil (get-v a)))
+      (set-v! a 5 'user)
+      ;; (set-v! b 6 'user)
+      (is (= 11 (get-v c)))
+      (forget-v! a 'user)
+      (set-v! c 10 'user)
+      (is (= 4 (get-v a)))
+      (is (= 24 (get-v m)))))
 
   (testing "square"
     (let [a (wire)
@@ -145,9 +189,7 @@
       (is (= 3.0 (get-v a)))
       (forget-v! b 'user)
       (is (thrown? Exception (set-v! b -9 'user)))
-      (is (= nil (get-v a)))
-      ;; (is (= 3.0 (get-v a)))
-      ))
+      (is (= nil (get-v a)))))
 
   (testing "Celsius Fahrenheit converter"
     (let [c (wire)
