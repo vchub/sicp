@@ -29,7 +29,14 @@
                                 (inform-others inform-no-val owner)
                                 'ok))
 
-        connect (fn [box] (swap! -constraints conj box))
+        ;; connect (fn [box]
+        ;;                     (swap! -constraints conj box)
+        ;;                     (when (has-v?) (inform-got-val box) ))
+
+        connect (fn [box] (when-not (contains? @-constraints box)
+                            (swap! -constraints conj box)
+                            (when (has-v?) (inform-got-val box) )))
+
         dispatch (fn [msg] (condp = msg
                              'get-v get-v
                              'has-v? has-v?
@@ -108,7 +115,26 @@
     (const y 32)
     'ok))
 
+(defn square [c f]
+  (let [w (wire)
+        ]
+    (multiplyer c c f)
+    'ok))
+
 (deftest test-wire
+
+  (testing "square"
+    (let [c (wire)
+          f (wire)
+          sq (square c f)]
+      (is (= nil (get-v c)))
+      (set-v! c 5 'user)
+      (is (= 25 (get-v f)))
+      (forget-v! c 'user)
+      (is (= nil (get-v f)))
+      (set-v! f 9 'user)
+      (is (= 3 (get-v c)))
+      ))
 
   (testing "Celsius Fahrenheit converter"
     (let [c (wire)
