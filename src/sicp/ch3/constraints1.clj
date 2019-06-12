@@ -29,13 +29,9 @@
                                 (inform-others inform-no-val owner)
                                 'ok))
 
-        ;; connect (fn [box]
-        ;;                     (swap! -constraints conj box)
-        ;;                     (when (has-v?) (inform-got-val box) ))
-
         connect (fn [box] (when-not (contains? @-constraints box)
                             (swap! -constraints conj box)
-                            (when (has-v?) (inform-got-val box) )))
+                            (when (has-v?) (inform-got-val box))))
 
         dispatch (fn [msg] (condp = msg
                              'get-v get-v
@@ -115,25 +111,42 @@
     (const y 32)
     'ok))
 
-(defn square [c f]
-  (let [w (wire)
-        ]
-    (multiplyer c c f)
-    'ok))
+(defn square [wa wb]
+  (let [ws [wa wb]]
+    (letfn [(got-val []
+              (cond
+                (has-v? wa) (set-v! wb (* (get-v wa) (get-v wa)) me)
+                (has-v? wb) (if (neg? (get-v wb))
+                              (throw (Exception. (format "square root of %s" (get-v wb))))
+                              (set-v! wa (Math/sqrt (get-v wb)) me))
+                :else nil))
+
+            (no-val [] (doseq [w ws] (forget-v! w me))
+                    (got-val))
+
+            (me [msg] (condp = msg
+                        'got-val (got-val)
+                        'no-val (no-val)))]
+      (doseq [w ws] (connect w me))
+      me)))
 
 (deftest test-wire
 
   (testing "square"
-    (let [c (wire)
-          f (wire)
-          sq (square c f)]
-      (is (= nil (get-v c)))
-      (set-v! c 5 'user)
-      (is (= 25 (get-v f)))
-      (forget-v! c 'user)
-      (is (= nil (get-v f)))
-      (set-v! f 9 'user)
-      (is (= 3 (get-v c)))
+    (let [a (wire)
+          b (wire)
+          sq (square a b)]
+      (is (= nil (get-v a)))
+      (set-v! a 5 'user)
+      (is (= 25 (get-v b)))
+      (forget-v! a 'user)
+      (is (= nil (get-v b)))
+      (set-v! b 9 'user)
+      (is (= 3.0 (get-v a)))
+      (forget-v! b 'user)
+      (is (thrown? Exception (set-v! b -9 'user)))
+      (is (= nil (get-v a)))
+      ;; (is (= 3.0 (get-v a)))
       ))
 
   (testing "Celsius Fahrenheit converter"
