@@ -11,5 +11,11 @@
 (testing "ex3.4"
   (is (= (sort [35 40 45 50]) (sort (set (ex3_4))))))
 
+(testing "volatile"
+  (let [x (volatile! 0)]
+    (vswap! x inc)
+    (is (= 1 @x))
+    ))
+
 (comment
   (comb/permutations [1 2]))

@@ -31,18 +31,20 @@
         (recur (inc i) (conj acc (<!! c)))))))
 
 (defn primes-chan "-> chan of primes" []
-  (let [integers (chan)
-       primes (chan)]
-    (go-loop [i 2] (>! integers i) (recur (inc i)))
+  (let [integers (chan 1)
+        _ (>!! integers 2)
+        primes (chan)]
+    (go-loop [i 3] (>! integers i) (recur (+ i 2)))
     (go-loop [cur-ch integers]
-             (let [prime (<! cur-ch)
-                   new-ch (chan 1 (filter #(pos? (mod % prime))))]
-               (>! primes prime)
-               (a/pipe cur-ch new-ch)
-               (recur new-ch))
-             )
-    primes
-    ))
+      (let [prime (<! cur-ch)
+            new-ch (chan 1 (filter #(pos? (mod % prime))))]
+        (>! primes prime)
+        (a/pipe cur-ch new-ch)
+        (recur new-ch)))
+    primes))
+
+(defn consume [n ch]
+  (dorun (repeatedly n #(<!! ch))))
 
 (deftest test-primes
   (testing "primes"
@@ -52,7 +54,8 @@
       (is (= 5 (<!! pc)))
       (is (= [7 11 13 17] (<!! (a/into [] (a/take 4 pc)))))
       (is (= [0 1 2 3] (<!! (a/into [] (a/to-chan (range 4))))))
-      )))
+      (prn (time (consume 100 pc))
+           ))))
 
 (test-primes)
 
@@ -84,16 +87,14 @@
     (testing "timeout"
       (let [c (chan)]
 
-      (a/take! (go 1) (fn[x] (prn "from go" x)))
-      (is (= 1 (<!! (go 1))))
+        (a/take! (go 1) (fn [x] (prn "from go" x)))
+        (is (= 1 (<!! (go 1))))
 
-      (go (<! (timeout 40)) (>! c 4))
-      (go (<! (timeout 1)) (>! c 1))
-      (is (= 1 (<!! c)))
-      (is (= 4 (<!! c)))
-      (a/close! c)
-      )
-      )
+        (go (<! (timeout 40)) (>! c 4))
+        (go (<! (timeout 1)) (>! c 1))
+        (is (= 1 (<!! c)))
+        (is (= 4 (<!! c)))
+        (a/close! c)))
 
     (let [c (chan 10)]
       (>!! c 'hi)
@@ -122,6 +123,10 @@
       (println "Read" n "msgs in" (- (System/currentTimeMillis) begin) "ms"))))
 
 ;; (run-test)
+
+
+
+
 
 (comment
   (delay 1)
