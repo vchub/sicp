@@ -40,7 +40,7 @@
 
 (defmacro chain
   ([x form] `(. ~x ~form))
-  ([x form & more] (concat `(chain (. ~x ~form)) more))
+  ([x form & more] `(chain (. ~x ~form) ~@more))
   )
 
 (deftest test-unless
