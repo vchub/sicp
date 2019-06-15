@@ -8,9 +8,9 @@
 (defn unless-fn-1 [test-e & exps]
   (if test-e nil (last exps)))
 
-(defmacro unless-m [test & body]
-  ;; (list 'if (list 'not test) (cons 'do body))
-  (list 'if test nil (cons 'do body))
+(defmacro unless-m [test & exps]
+  ;; (list 'if (list 'not test) (cons 'do exps))
+  (list 'if test nil (cons 'do exps))
   )
 
 (defmacro unless-m-1 [test body]
@@ -18,9 +18,48 @@
   (list 'if test nil body)
   )
 
+(defmacro chain [obj method & methods]
+  (loop [methods methods acc (list '. obj method)]
+        (if (empty? methods)
+          acc
+          (recur (rest methods) (list '. acc (first methods)))))
+  )
+
+(defmacro chain [obj method & methods]
+  (loop [methods methods acc `(. ~obj ~method)]
+        (if (empty? methods)
+          acc
+          (recur (rest methods) `(. ~acc ~(first methods)))))
+  )
+
+;; (defmacro chain
+;;   ([x form] (list '. x form))
+;;   ([x form & more] (concat (list 'chain (list '. x form)) more))
+;;   ;; ([x form & more] (concat (list 'chain x form) more))
+;;   )
+
+(defmacro chain
+  ([x form] `(. ~x ~form))
+  ([x form & more] (concat `(chain (. ~x ~form)) more))
+  )
+
 (deftest test-unless
 
+  (testing "chain"
+    (is (= '(. arm getHand) (macroexpand '(chain arm getHand))))
+    (is (= '(. (. (. arm getHand) getFinger) getNail)
+           (macroexpand '(chain arm getHand getFinger getNail))))
+    )
+
+  (testing "~@"
+    (let [xs [1 2]]
+      (is (= `(x 1 2) `(x ~@xs)))
+      (is (= `(x [1 2]) `(x ~xs)))
+      ;; (is (= '(x [1 2]) '(x ~xs)))
+      ))
+
 (testing "unless-m-1"
+  ;; (prn (macroexpand-1 '(unless-m (< 0 1) 3 2 1)))
   ;; (prn (macroexpand '(unless-m (< 0 1) 3 2 1)))
     (is (= nil (unless-m-1 (< 0 1) (do 3 2 1))))
     (is (= 1 (unless-m-1 (> 0 1) (do 3 2 1))))
@@ -43,3 +82,8 @@
   )
 
 (test-unless)
+
+(comment
+  (macroexpand '(.. arm getHand getFinger getNail))
+  (macroexpand '(and 1 2 3))
+  )
