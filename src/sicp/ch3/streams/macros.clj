@@ -47,7 +47,7 @@
 
   (testing "bench"
     ;; (prn (macroexpand-1 '(bench (str "a" "b"))))
-    (prn (macroexpand '(bench (str "a" "b"))))
+    ;; (prn (macroexpand '(bench (str "a" "b"))))
     ;; (is (= `(let [start (System/nanoTime)
     ;;               result (str "a" "b")]
     ;;           {:result result :elapsed (- (System/nanoTime) start)})

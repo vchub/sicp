@@ -53,9 +53,29 @@
                   :else
                   (cons (car s) (take-s (cdr s) (dec n))))))
 
+(defmacro delay-m [form]
+  `(mem-proc (fn[] ~form))
+  )
+
+(defmacro cons-m [h t]
+  `(Stream. ~h (delay-m ~t)))
+
 (defn cons-s [h t] (Stream. h (mem-proc t)))
 
 (deftest test-stream
+  (testing "cons-m"
+    ;; (prn (macroexpand '(cons-m 1 (+ 1 2))))
+    (let [x (cons-m 1 2)
+          y (cons-m 3 x)
+          lazy-nums (fn nums [start]
+                      (cons-m start (nums (inc start))))
+          xs (lazy-nums 3)]
+      (is (= '(3 4 5 6) (take-s xs 4)))
+      (is (= '(3 4 5 6) (take-s xs 4)))
+      (is (= 1 (car x)))
+      (is (= 2 (cdr x)))
+      (is (= 3 (car y)))
+      (is (= 2 (cdr (cdr y))))))
 
   (testing "code stream"
     (let [p (cons-s 1 (constantly 2))
