@@ -43,7 +43,16 @@
          result# ~exp]
          {:result result# :elapsed (- (System/nanoTime) start#)}))
 
+(defmacro with-out-str-my [& body]
+  `(let [s# (java.io.StringWriter.)]
+    (binding [*out* s#]
+      ~@body)
+    (str s#)))
+
 (deftest test-unless
+
+  (testing "with-out-str-my"
+    (is (= "\"foo\"\n" (with-out-str-my 1 2 (prn "foo") 3))))
 
   (testing "bench"
     ;; (prn (macroexpand-1 '(bench (str "a" "b"))))

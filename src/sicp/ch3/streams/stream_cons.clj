@@ -41,28 +41,68 @@
 
 (defrecord Stream [h t]
   IStream
-  ;; clojure.lang.ISeq
-  ;; (first (fn[] (car s)))
-  ;; (next[s] (car s))
-  ;; (more[s] (cdr s))
   (car [_] h)
   (cdr [_] (t))
   (take-s [s n] (cond
                   (nil? s) nil
                   (< n 1) nil
                   :else
-                  (cons (car s) (take-s (cdr s) (dec n))))))
+                  (cons (car s) (take-s (cdr s) (dec n)))))
+  ;; clojure.lang.ISeq
+  ;; (first [s] (car s))
+  ;; (next [s] (cdr s))
+  ;; (cons [s item] (Stream. item s))
+  ;; clojure.lang.Seqable
+  ;; (seq [this] this)
+  )
 
 (defmacro delay-m [form]
-  `(mem-proc (fn[] ~form))
-  )
+  `(mem-proc (fn [] ~form)))
 
 (defmacro cons-m [h t]
   `(Stream. ~h (delay-m ~t)))
 
 (defn cons-s [h t] (Stream. h (mem-proc t)))
 
+(defn map-stream "fn, Stream -> Stream"
+  [proc xs]
+  (if (nil? xs)
+    nil
+    (cons-m
+     (proc (car xs))
+     (map-stream proc (cdr xs)))))
+
+(defn map-streams "fn, [Stream] -> Stream"
+  [proc & xss]
+  (if (some nil? xss)
+    nil
+    (cons-m
+     (apply proc (map car xss))
+     (apply map-streams (cons proc (map cdr xss))))))
+
 (deftest test-stream
+
+  ;; (testing "clojure.lang.ISeq"
+  ;;   (let [nums (fn nums [start step] (cons-m start (nums (+ start step) step)))
+  ;;         xs (nums 1 1)
+  ;;         ys (nums 2 2)]
+  ;;     (is (= [2 4 6] (take-s ys 3)))
+  ;;     (is (seq? xs))
+  ;;     (is (= [2 4 6] (map identity ys)))
+  ;;     (is (= [2 4 6] (take 3 (map identity ys))))))
+
+  (testing "map-stream"
+    (let [nums (fn nums [start step] (cons-m start (nums (+ start step) step)))
+          xs (nums 1 1)
+          ys (nums 2 2)]
+      (is (= [2 4 6] (take-s (nums 2 2) 3)))
+      (is (= [2 4 6] (take-s ys 3)))
+      (is (= 2 (car ys)))
+      (is (= Stream (type (cdr ys))))
+      (is (= Stream (type xs)))
+      (is (= [1 2 3] (take-s (map-stream identity xs) 3)))
+      (is (= [3 6 9] (take-s (map-streams + xs ys) 3)))))
+
   (testing "cons-m"
     ;; (prn (macroexpand '(cons-m 1 (+ 1 2))))
     (let [x (cons-m 1 2)
@@ -93,6 +133,7 @@
   ;; (testing "misc"
   ;;   )
 
+  ;; (is (= "foo" (with-out-str (prn "foo"))))
   ;; (prn (seq (.listFiles (File. "."))))
   ;; (prn (->> (File. ".")
   ;;           (.listFiles)
@@ -126,6 +167,7 @@
 (test-misc)
 
 (comment
+  (with-out-str (prn 'hi))
 
   (->)
   condp
