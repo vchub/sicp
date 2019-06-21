@@ -39,7 +39,7 @@
   (cdr [_])
   (take-s [s n]))
 
-(defrecord Stream [h t]
+(deftype Stream [h t]
   IStream
   (car [_] h)
   (cdr [_] (t))
@@ -48,13 +48,14 @@
                   (< n 1) nil
                   :else
                   (cons (car s) (take-s (cdr s) (dec n)))))
-  ;; clojure.lang.ISeq
-  ;; (first [s] (car s))
+  clojure.lang.ISeq
+  (first [s] (car s))
   ;; (next [s] (cdr s))
+  ;; (more [s] (cdr s))
+  ;; (more [s] (if-let [n (car (cdr s))] (Stream. n (cdr (cdr s))) '()))
   ;; (cons [s item] (Stream. item s))
-  ;; clojure.lang.Seqable
-  ;; (seq [this] this)
-  )
+  clojure.lang.Seqable
+  (seq [this] this))
 
 (defmacro delay-m [form]
   `(mem-proc (fn [] ~form)))
@@ -80,6 +81,20 @@
      (apply proc (map car xss))
      (apply map-streams (cons proc (map cdr xss))))))
 
+(defn filter-stream "fn, Stream -> Stream"
+  [pred xs]
+  (cond
+    (nil? xs) nil
+    (pred (car xs)) (cons-m (car xs) (filter-stream pred (cdr xs)))
+    :else (recur pred (cdr xs))))
+
+(defn stream-ref "Stream, num -> item"
+  [xs n]
+  (cond
+    (nil? xs) nil
+    (zero? n) (car xs)
+    :else (recur (cdr xs) (dec n))))
+
 (deftest test-stream
 
   ;; (testing "clojure.lang.ISeq"
@@ -89,7 +104,23 @@
   ;;     (is (= [2 4 6] (take-s ys 3)))
   ;;     (is (seq? xs))
   ;;     (is (= [2 4 6] (map identity ys)))
-  ;;     (is (= [2 4 6] (take 3 (map identity ys))))))
+  ;;     ;; (is (= [2 4 6] (take 3 (map identity ys))))
+  ;;     ))
+
+  (testing "ex 3.52"
+    (let [nums (fn nums [start step] (cons-m start (nums (+ start step) step)))
+          sum (atom 0)
+          accum (fn [x] (swap! sum + x) @sum)
+          xs (map-stream accum (nums 1 1))
+          y (filter-stream even? xs)
+          z (filter-stream #(= 0 (rem % 5)) xs)]
+      (is (= [1 3 6] (take-s xs 3)))
+      (is (= 6 (stream-ref xs 2)))
+      ;; (is (= [1 3 6] (take-s y 3))
+      (is (= 136 (stream-ref y 7)))
+      (is (= [10 15 45] (take-s z 3)))
+      (is (= '(10 15 45 55 105 120 190 210)  (take-s z 8)))
+      ))
 
   (testing "map-stream"
     (let [nums (fn nums [start step] (cons-m start (nums (+ start step) step)))
