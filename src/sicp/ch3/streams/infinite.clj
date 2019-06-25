@@ -27,7 +27,6 @@
         (cons-m n (n-primes (dec n)))))))
 
 (defn nums [start step] (cons-m start (nums (+ start step) step)))
-(def s-nums (nums 5 2))
 
 (defn fibgen [a b] (cons-m a (fibgen b (+ a b))))
 
@@ -55,10 +54,36 @@
 
 (def fibs (cons-m 0 (cons-m 1 (ss/map-streams + fibs (cdr fibs)))))
 
+(def factor-of-2 (cons-m 1 (ss/map-stream #(* % 2) factor-of-2)))
+
+(def s-nums (nums 3 2))
+
+(def prime?)
+
+(def primes-2 (cons-m 2 (filter-stream prime? s-nums)))
+
+(defn square [x] (* x x))
+
+(defn prime? [x]
+  (loop [ps primes-2]
+    (cond
+      (> (square (car ps)) x) true
+      (zero? (rem x (car ps))) false
+      :else (recur (cdr ps)))))
+
 (deftest test-n-primes
 
+  (testing "primes"
+    (is (= [2 3] (take-s primes-2 2)))
+    (is (= [2 3 5] (take-s primes-2 3)))
+    (is (= [2 3 5 7 11 13] (take-s primes-2 6)))
+    (is (= 233 (ss/stream-ref primes-2 50))))
+
   (testing "fibs fibonacci"
-    (is (= [0 1 1 2 3 5 8] (take-s fibs 7))))
+    (is (= [1 2 4 8 16 32] (take-s factor-of-2 6))))
+
+  (testing "fibs fibonacci"
+    (is (= [0 1 1 2 3 5 8 13 21] (take-s fibs 9))))
 
   (testing "implicit Stream"
     (is (= [1 1 1] (ss/take-s ones 3)))
