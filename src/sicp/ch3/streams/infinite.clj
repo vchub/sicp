@@ -71,7 +71,47 @@
       (zero? (rem x (car ps))) false
       :else (recur (cdr ps)))))
 
+(def s11 (cons-m 1  (ss/map-streams + s11 s11)))
+
+(def factorials (cons-m 1 (ss/map-streams * factorials integers)))
+
+(defn partial-sums "Stream -> Stream"
+  [s]
+  (letfn [(iter [s acc]
+            (do
+              ;; (prn acc)
+              (cons-m acc (iter (cdr s) (+ (car s) acc)))))]
+    (cdr (iter s 0))))
+
+(defn scale-stream "Stream -> Stream * fact"
+  [xs k]
+  (cons-m (*' (car xs) k) (scale-stream (cdr xs) k)))
+
+(defn merge-streams [xs ys]
+  (cond
+    (< (car xs) (car ys)) (cons-m (car xs) (merge-streams (cdr xs) ys))
+    (> (car xs) (car ys)) (cons-m (car ys) (merge-streams xs (cdr ys)))
+    :else (cons-m (car xs) (merge-streams (cdr xs) (cdr ys)))))
+
+(def hamming-seq (cons-m 1
+                         (merge-streams (scale-stream hamming-seq 5)
+                                        (merge-streams
+                                         (scale-stream hamming-seq 2) (scale-stream hamming-seq 3)))))
+
 (deftest test-n-primes
+  (testing "ex 3.56 Hamming"
+    (is (=[1 2 3 4 5 6 8 9 10 12 15 16 18 20 24 25 27 30 32 36]  (take-s hamming-seq 20)))
+    ;; (is (= 2125764000 (ss/stream-ref hamming-seq 1690)))
+    ;; (is (= 519312780448388736089589843750000000000000000000000000000000000000000000000000000000 (ss/stream-ref hamming-seq (int (- 1e6 1)))))
+    )
+
+  (testing "ex"
+    (let [ps-int (partial-sums integers)]
+      (is (= [1 3 6 10 15] (take-s ps-int 5)))
+      (is (= 55 (ss/stream-ref ps-int 9))))
+
+    (is (= [1 2 4 8 16] (take-s s11 5)))
+    (is (= [1 1 2 6 24 120] (take-s factorials 6))))
 
   (testing "primes"
     (is (= [2 3] (take-s primes-2 2)))
