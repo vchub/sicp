@@ -63,7 +63,7 @@
 (defmacro cons-m [h t]
   `(Stream. ~h (delay-m ~t)))
 
-(defn cons-s [h t] (Stream. h (mem-proc t)))
+(defn cons-f [h t] (Stream. h (mem-proc t)))
 
 (defn map-stream "fn, Stream -> Stream"
   [proc xs]
@@ -149,8 +149,8 @@
       (is (= 2 (cdr (cdr y))))))
 
   (testing "code stream"
-    (let [p (cons-s 1 (constantly 2))
-          nums (fn nums [start] (cons-s start (fn [] (nums (inc start)))))
+    (let [p (cons-f 1 (constantly 2))
+          nums (fn nums [start] (cons-f start (fn [] (nums (inc start)))))
           xs (nums 2)]
       (is (= 1 (car p)))
       ;; (is (= 1 (next p)))
