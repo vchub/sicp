@@ -42,7 +42,8 @@
       (recur (cdr es))
       (cons-m {:p p :c (/ c p)} (integrate (cdr es))))))
 
-(defn mul-const "Stream, num -> Stream" [es x]
+(defn mul-const "Stream, num -> Stream"
+  [es x]
   (ss/map-stream #(update % :c (fn [c] (* c x))) es))
 
 (def sin-s (mul-const (differentiate cos-s) -1))
@@ -79,7 +80,22 @@
              (mul-term-series (car xs) (cdr ys))
              (mul (cdr xs) ys)))))
 
+(defn invert-unit-s "Stream 1 + ... -> Stream"
+  [xs]
+  (cons-m {:p 0 :c 1} (mul (mul-const (cdr xs) -1) (invert-unit-s xs))))
+
+(defn tan [x]
+  (series-partial-sum (mul sin-s (invert-unit-s cos-s)) x))
+
 (deftest test-series
+  (testing "invert-unit-s"
+    (let [x (cons-m {:p 0 :c 1} (cons-m {:p 1 :c 1} nil))
+          exp-1 (fn [x] (series-partial-sum (invert-unit-s exp-s) x))]
+      (is (= [{:p 0 :c 1} {:p 1 :c -1} {:p 2 :c 1} {:p 3 :c -1}] (take-s (invert-unit-s x) 4)))
+      (is (close-enough (/ 1 (Math/exp 0.2)) (stream-ref (exp-1 0.2) 4) 1e-3)))
+    (is (close-enough (Math/tan 0.3) (stream-ref (tan 0.3) 4) 1e-3))
+    )
+
   (testing "mul"
     (is (= (take-s (mul-const exp-s 2) 10) (take-s (mul-term-series {:p 0 :c 2} exp-s) 10)))
     (is (= (take-s (mul-const exp-s 2) 10) (take-s (mul (cons-m {:p 0 :c 2} nil) exp-s) 10)))
@@ -99,9 +115,8 @@
     (is (close-enough (* (Math/exp 0.5) (Math/pow (Math/sin 0.5) 2))
                       (stream-ref (series-partial-sum (mul exp-s (mul sin-s sin-s)) 0.5) 5) 1e-3))
     ;; sin^2 + cos^2 = 1
-    (is (= [{:p 0 :c 1}{:p 2 :c 0}{:p 4 :c 0}{:p 6 :c 0}]
-           (take-s (add (mul sin-s sin-s) (mul cos-s cos-s)) 4)))
-    )
+    (is (= [{:p 0 :c 1} {:p 2 :c 0} {:p 4 :c 0} {:p 6 :c 0}]
+           (take-s (add (mul sin-s sin-s) (mul cos-s cos-s)) 4))))
 
   (testing "add"
     (is (= (take-s (mul-const cos-s 2) 10) (take-s (add cos-s cos-s) 10)))
