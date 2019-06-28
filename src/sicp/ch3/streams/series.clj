@@ -62,18 +62,41 @@
     (> (:p (car xs)) (:p (car ys))) (cons-m (car ys) (add xs (cdr ys)))
     :else (cons-m {:p (:p (car xs)) :c (+ (:c (car xs)) (:c (car ys)))} (add (cdr xs) (cdr ys)))))
 
+(defn mul-terms "Stream, {:p :c} -> Stream"
+  [x y]
+  {:p (+ (:p x) (:p y)) :c (* (:c x) (:c y))})
+
+(defn mul-term-series "Stream, {:p :c} -> Stream"
+  [x es]
+  (ss/map-stream #(mul-terms x %) es))
+
 (defn mul [xs ys]
-  (cons-m {:p (+ (:p (car xs)) (:p (car ys))) :c (* (:c (car xs)) (:c (car ys)))}
-          (add (mul (cons-m (car xs) nil) (cdr ys))
-               (when (and (cdr xs) (cdr ys))
-                 (mul (cdr xs) (cdr ys)))))
-  )
+  (if (or (nil? xs) (nil? ys))
+    nil
+    (cons-m (mul-terms (car xs) (car ys))
+            (add
+             (mul-term-series (car xs) (cdr ys))
+             (mul (cdr xs) ys)))))
 
 (deftest test-series
   (testing "mul"
-    (is (= (take-s exp-s 10) (take-s (differentiate exp-s) 10)))
+    (is (= (take-s (mul-const exp-s 2) 10) (take-s (mul-term-series {:p 0 :c 2} exp-s) 10)))
+    (is (= (take-s (mul-const exp-s 2) 10) (take-s (mul (cons-m {:p 0 :c 2} nil) exp-s) 10)))
+    (is (= (take-s (mul-const exp-s 2) 10) (take-s (mul exp-s (cons-m {:p 0 :c 2} nil)) 10)))
+    (let [x (cons-m {:p 0 :c 2} (cons-m {:p 1 :c 1} nil))
+          y (cons-m {:p 0 :c 2} (cons-m {:p 1 :c 1} nil))]
+      (is (= [{:p 0 :c 4} {:p 1 :c 2}] (take-s (add x y) 2)))
+      (is (= [{:p 0 :c 4} {:p 1 :c 4} {:p 2 :c 1}] (take-s (mul x y) 4))))
+
+    ;; (is (= 1 (take-s (mul exp-s exp-s) 4)))
+
+
+    ;; sin^2
     (is (close-enough (Math/pow (Math/sin 0.5) 2)
                       (stream-ref (series-partial-sum (mul sin-s sin-s) 0.5) 4) 1e-3))
+    ;; e*sin^2
+    (is (close-enough (* (Math/exp 0.5) (Math/pow (Math/sin 0.5) 2))
+                      (stream-ref (series-partial-sum (mul exp-s (mul sin-s sin-s)) 0.5) 5) 1e-3))
     )
 
   (testing "add"

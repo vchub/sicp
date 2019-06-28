@@ -37,17 +37,18 @@
 (defprotocol IStream
   (car [_])
   (cdr [_])
-  (take-s [s n]))
+  ;; (take-s [s n])
+  )
 
 (deftype Stream [h t]
   IStream
   (car [_] h)
   (cdr [_] (t))
-  (take-s [s n] (cond
-                  (nil? s) nil
-                  (< n 1) nil
-                  :else
-                  (cons (car s) (take-s (cdr s) (dec n)))))
+  ;; (take-s [s n] (cond
+  ;;                 (nil? s) nil
+  ;;                 (< n 1) nil
+  ;;                 :else
+  ;;                 (cons (car s) (take-s (cdr s) (dec n)))))
   clojure.lang.ISeq
   (first [s] (car s))
   ;; (next [s] (cdr s))
@@ -56,6 +57,12 @@
   ;; (cons [s item] (Stream. item s))
   clojure.lang.Seqable
   (seq [this] this))
+
+(defn take-s [s n] (cond
+                  (nil? s) nil
+                  (< n 1) nil
+                  :else
+                  (cons (car s) (take-s (cdr s) (dec n)))))
 
 (defmacro delay-m [form]
   `(mem-proc (fn [] ~form)))
