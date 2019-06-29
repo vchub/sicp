@@ -107,7 +107,9 @@
 
 (defn exp [x] (partial-sums (ss/map-streams * (powerx x) (ss/map-stream #(/ 1 %) factorials1))))
 
-(defn close-enough [a b dx] (< (Math/abs (- a b)) dx))
+(defn abs[x] (if (neg? x) (* -1 x) x))
+
+(defn close-enough [a b dx] (< (abs (- a b)) dx))
 
 (defn power-sum "Stream of coeficietns a, x -> a0 + a1*x + a2*x^2 + ..."
   [as x]
