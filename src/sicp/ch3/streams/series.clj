@@ -93,8 +93,7 @@
           exp-1 (fn [x] (series-partial-sum (invert-unit-s exp-s) x))]
       (is (= [{:p 0 :c 1} {:p 1 :c -1} {:p 2 :c 1} {:p 3 :c -1}] (take-s (invert-unit-s x) 4)))
       (is (close-enough (/ 1 (Math/exp 0.2)) (stream-ref (exp-1 0.2) 4) 1e-3)))
-    (is (close-enough (Math/tan 0.3) (stream-ref (tan 0.3) 4) 1e-3))
-    )
+    (is (close-enough (Math/tan 0.3) (stream-ref (tan 0.3) 4) 1e-3)))
 
   (testing "mul"
     (is (= (take-s (mul-const exp-s 2) 10) (take-s (mul-term-series {:p 0 :c 2} exp-s) 10)))
