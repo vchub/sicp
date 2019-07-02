@@ -70,7 +70,8 @@
 
 (defn hypoth [a b] (+ (square a) (square b)))
 
-(def naturals (cons-m 1 (ss/map-stream inc naturals)))
+;; (def naturals (cons-m 1 (ss/map-stream inc naturals)))
+(def naturals (cdr integers))
 
 (defn pythagorean-tripple "i^2 + j^2 = k^2 i<=j<=k"
   []
@@ -92,29 +93,57 @@
          i (range 1 (inc j))]
      [i j])))
 
+(defn merge-weighted
+  [weight xs ys]
+  (lazy-seq
+   (cond
+     (< (weight (first xs)) (weight (first ys)))
+     (cons (first xs) (merge-weighted weight (next xs) ys))
+     (> (weight (first xs)) (weight (first ys)))
+     (cons (first ys) (merge-weighted weight xs (next ys)))
+     :else
+     (cons (first xs) (merge-weighted weight (next xs) (next ys))))))
+
+(defn lazy-pairs
+  "weight fn, Stream, Stream -> Stream"
+  [weight xs ys]
+  (lazy-seq (cons [(first xs) (first ys)]
+                  (merge-weighted weight
+                                  (lazy-pairs weight (rest xs) (rest ys))
+                                  (map #(vector (first xs) %) (rest ys))))))
+
 (deftest test-pairs
+
+  (testing "ex 3.70"
+    (let [sum-ps (lazy-pairs (fn [[a b]] (+ a b)) (range) (range))
+          not235 (filter #(not (or (= 0 (rem % 2))(= 0 (rem % 3))(= 0 (rem % 5)))) (drop 1 (range)))
+          ex-ps (lazy-pairs (fn [[i j]] (+ (* 2 i) (* 3 j) (* 5 i j))) not235 not235)]
+      ;; (prn (type sum-ps))
+      (is (= [0 1 2 3] (take 4 (merge-weighted identity (range) (range)))))
+      ;; (is (= [0 1 2 3] (take 12 (merge-weighted (fn [[a b]] (+ a b)) int-pairs-for int-pairs-for))))
+      (is (= (range 100) (take 100 (map (fn[[a b]] (+ a b)) sum-ps))))
+      (is (= '((1 1) (1 7) (1 11) (1 13) (1 17)) (take 5 ex-ps)))
+      ))
 
   (testing "ex 3.69"
     (let [ts (tripples integers integers integers)
           ts-100 (set (take-s ts 100))
           exp (set [[0 0 0] [1 1 1] [1 2 2] [2 2 2] [0 0 2]])
-          errors (set [[1 0 0] [1 0 1] [1 2 1] [2 1 1] [2 0 2]])
-          ]
+          errors (set [[1 0 0] [1 0 1] [1 2 1] [2 1 1] [2 0 2]])]
 
       ;; (is (= [[0 0 0] [0 0 1] [1 0 1] [0 1 1]] (take-s ts 8)))
+
+
       (is  (some #(= % [1 3 4]) ts-100))
       (is  (some exp ts-100))
-      (is  (not (some errors ts-100)))
-      )
+      (is  (not (some errors ts-100))))
 
-    (let [
-          p-triple-map (pythagorean-tripple-map 100)
+    (let [p-triple-map (pythagorean-tripple-map 100)
           primitive-triples (set '((3, 4, 5) (5, 12, 13) (8, 15, 17) (7, 24, 25)
                                              (20, 21, 29) (12, 35, 37) (9, 40, 41) (28, 45, 53)
                                              (11, 60, 61) (16, 63, 65) (33, 56, 65) (48, 55, 73)
                                              (13, 84, 85) (36, 77, 85) (39, 80, 89) (65, 72, 97)))
-          pyth-s (set (take-s (pythagorean-tripple) 4))
-          ]
+          pyth-s (set (take-s (pythagorean-tripple) 4))]
       ;; (prn (clojure.set/difference primitive-triples p-triple-map))
       (is (clojure.set/subset? primitive-triples p-triple-map))
       (is (clojure.set/subset? (set [[3 4 5] [5 12 13]]) pyth-s))
