@@ -102,7 +102,7 @@
      (> (weight (first xs)) (weight (first ys)))
      (cons (first ys) (merge-weighted weight xs (next ys)))
      :else
-     (cons (first xs) (merge-weighted weight (next xs) (next ys))))))
+     (cons (first xs) (merge-weighted weight (next xs) ys)))))
 
 (defn lazy-pairs
   "weight fn, Stream, Stream -> Stream"
@@ -114,16 +114,37 @@
 
 (deftest test-pairs
 
+  (testing "ex 3.71"
+    (let [cube (fn[x] (* x x x))
+          weight (fn [[i j]] (+ (cube i) (cube j)))
+          nats (drop 1 (range))
+          cube-weighted-s (lazy-pairs weight nats nats)
+          ramanujan-tuple (reduce (fn[[prev acc] x] (if (= (weight prev) (weight x))
+                                                  [prev (conj acc [(weight prev) prev x])]
+                                                  [x acc]))
+                              [[0 0] []]
+                              (take 1000 cube-weighted-s))
+          ramanujan-s (get ramanujan-tuple 1)
+
+          ]
+      ;; (is (= 1 (take 5 ramanujan-tuple)))
+      (is (= '(1729, 4104, 13832, 20683, 32832, 39312)
+             (take 6 (map (fn[[n _]] n) ramanujan-s))))
+      ))
+
   (testing "ex 3.70"
     (let [sum-ps (lazy-pairs (fn [[a b]] (+ a b)) (range) (range))
-          not235 (filter #(not (or (= 0 (rem % 2))(= 0 (rem % 3))(= 0 (rem % 5)))) (drop 1 (range)))
+          not235 (filter #(not (or (= 0 (rem % 2)) (= 0 (rem % 3)) (= 0 (rem % 5)))) (drop 1 (range)))
           ex-ps (lazy-pairs (fn [[i j]] (+ (* 2 i) (* 3 j) (* 5 i j))) not235 not235)]
       ;; (prn (type sum-ps))
-      (is (= [0 1 2 3] (take 4 (merge-weighted identity (range) (range)))))
+      ;; (is (= [0 1 2 3] (take 4 (merge-weighted identity (range) (range)))))
+      ;; (is (= (range 100) (take 100 (map (fn [[a b]] (+ a b)) sum-ps))))
+      (let [got (take 100 (map (fn [[a b]] (+ a b)) sum-ps))
+            difs (reduce (fn[[prev acc] x] [x (conj acc (- x prev))]) [0 []] got)]
+        (is (every? #{0 1} (get difs 1))))
       ;; (is (= [0 1 2 3] (take 12 (merge-weighted (fn [[a b]] (+ a b)) int-pairs-for int-pairs-for))))
-      (is (= (range 100) (take 100 (map (fn[[a b]] (+ a b)) sum-ps))))
-      (is (= '((1 1) (1 7) (1 11) (1 13) (1 17)) (take 5 ex-ps)))
-      ))
+
+      (is (= '((1 1) (1 7) (1 11) (1 13) (1 17)) (take 5 ex-ps)))))
 
   (testing "ex 3.69"
     (let [ts (tripples integers integers integers)
