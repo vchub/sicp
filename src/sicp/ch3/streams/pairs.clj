@@ -115,22 +115,21 @@
 (deftest test-pairs
 
   (testing "ex 3.71"
-    (let [cube (fn[x] (* x x x))
+    (let [cube (fn [x] (* x x x))
           weight (fn [[i j]] (+ (cube i) (cube j)))
           nats (drop 1 (range))
           cube-weighted-s (lazy-pairs weight nats nats)
-          ramanujan-tuple (reduce (fn[[prev acc] x] (if (= (weight prev) (weight x))
-                                                  [prev (conj acc [(weight prev) prev x])]
-                                                  [x acc]))
-                              [[0 0] []]
-                              (take 1000 cube-weighted-s))
-          ramanujan-s (get ramanujan-tuple 1)
-
-          ]
+          ramanujan-tuple (reduce (fn [[prev acc] x] (if (= (weight prev) (weight x))
+                                                       [prev (conj acc [(weight prev) prev x])]
+                                                       [x acc]))
+                                  [[0 0] []]
+                                  (take 1000 cube-weighted-s))
+          ramanujan-s (get ramanujan-tuple 1)]
       ;; (is (= 1 (take 5 ramanujan-tuple)))
+
+
       (is (= '(1729, 4104, 13832, 20683, 32832, 39312)
-             (take 6 (map (fn[[n _]] n) ramanujan-s))))
-      ))
+             (take 6 (map (fn [[n _]] n) ramanujan-s))))))
 
   (testing "ex 3.70"
     (let [sum-ps (lazy-pairs (fn [[a b]] (+ a b)) (range) (range))
@@ -140,7 +139,7 @@
       ;; (is (= [0 1 2 3] (take 4 (merge-weighted identity (range) (range)))))
       ;; (is (= (range 100) (take 100 (map (fn [[a b]] (+ a b)) sum-ps))))
       (let [got (take 100 (map (fn [[a b]] (+ a b)) sum-ps))
-            difs (reduce (fn[[prev acc] x] [x (conj acc (- x prev))]) [0 []] got)]
+            difs (reduce (fn [[prev acc] x] [x (conj acc (- x prev))]) [0 []] got)]
         (is (every? #{0 1} (get difs 1))))
       ;; (is (= [0 1 2 3] (take 12 (merge-weighted (fn [[a b]] (+ a b)) int-pairs-for int-pairs-for))))
 
