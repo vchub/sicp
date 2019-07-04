@@ -39,7 +39,7 @@
   [n xs]
   (letfn [(average [xs] (/ (reduce + xs) n))
           (iter [xs acc]
-            (lazy-seq (cons acc (iter (next xs) (average (take n xs))))))]
+                (lazy-seq (cons acc (iter (next xs) (average (take n xs))))))]
     (drop 1 (iter (lazy-cat (repeat (dec n) 0) xs) 0))))
 
 (deftest test-integral
@@ -51,8 +51,7 @@
       (is (= exp (take (count in) (zero-cross in))))
       (is (= [0 1/2 3/2 5/2] (take 4 (smooth 2 (range)))))
       (is (= [0 1/3 1 2 3 4] (take 6 (smooth 3 (range)))))
-      (is (= ex-noise (take (count in-noise) (zero-cross (smooth 2 in-noise)))))
-      ))
+      (is (= ex-noise (take (count in-noise) (zero-cross (smooth 2 in-noise)))))))
 
   (testing "RC"
     (let [rc1 (RC 5 1 0.5)]
