@@ -49,7 +49,7 @@
                                (f y)))))]
     (iter y0 (f y0))))
 
-(defn square[x] (* x x))
+(defn square [x] (* x x))
 
 (deftest test-delayed
   (testing "solve"
