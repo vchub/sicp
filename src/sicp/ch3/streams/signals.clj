@@ -57,6 +57,7 @@
     (let [rc1 (RC 5 1 0.5)]
       (is (= 26 (stream-ref (rc1 integers 0) 5)))
       (is (= 6 (stream-ref (rc1 ones 0) 5)))))
+
   (testing "integral"
     (is (= (range 10) (take-s integers 10)))
     (is (= 55 (stream-ref (integral integers 0 1) 11)))

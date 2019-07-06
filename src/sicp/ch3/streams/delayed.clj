@@ -27,9 +27,17 @@
   "(num)-> num, init, num -> Stream [num]
    solve diff.equation: dy/dt = f(y)"
   [f y0 dt]
-  (letfn [(y [] (integral-lazy (lazy-seq (cons 0 (dy))) y0 dt))
-          (dy [] (map f (y)))]
-    (lazy-seq (cons y0 (y)))))
+  (def solve-dy nil)
+  ;; (def solve-y (lazy-seq (integral-lazy solve-dy y0 dt)))
+  (def solve-y (integral-lazy (lazy-seq (cons 0 solve-dy)) y0 dt))
+  (def solve-dy (map f solve-y))
+  solve-y
+
+  ;; (letfn [(y [] (integral-lazy (lazy-seq (cons 0 (dy))) y0 dt))
+  ;;         (dy [] (map f (y)))]
+  ;;   (lazy-seq (cons y0 (y))))
+
+  )
 
 (defn solve-recursion
   "(num)-> num, init, num -> Stream [num]
@@ -47,15 +55,57 @@
                                (+ y (* dy dt))
                                 ;; dy
                                (f y)))))]
-    (iter y0 (f y0))))
+    (iter y0 1)))
+
+(defn to-self [x0]
+  (def to-self-y 0)
+  (def to-self-x (lazy-seq (cons x0 to-self-y)))
+  (def to-self-y [2])
+  ;; (let [y 0
+  ;;       x (lazy-seq (cons x0 (force y)))
+  ;;       y (delay [2])
+  ;;       ]
+  ;;   x)
+  to-self-x)
+
 
 (defn square [x] (* x x))
 
+(defn second-order-iter
+  "(num)-> num, init, num -> Stream [num]
+   solve diff.equation: dy^2/dt^2 = f(y)"
+  [f y0 dt]
+  (letfn [(iter [iiy iy dy]
+            (lazy-seq (cons iiy (iter
+                                ;; integral integral
+                               (+ iiy (* iy dt))
+                                ;; integral
+                               (+ iy (* dy dt))
+                                ;; dy
+                               (f iiy)))))]
+    (iter y0 0 0))
+  )
+
 (deftest test-delayed
+  (testing "to-self"
+    ;; (is (= [1 2] (to-self 1)))
+    (is (= [1 2] (take 2 (to-self 1))))
+    )
+
   (testing "solve"
     (is (close-enough Math/E (nth (solve identity 1 0.05) 20) 0.5))
+    ;; (is (close-enough Math/E (nth (solve identity 1 1e-3) 1e3) 1e-2))
     (is (close-enough Math/E (nth (solve-recursion identity 1 0.05) 20) 0.5))
-    (is (close-enough Math/E (nth (solve-iter identity 1 1e-3) 1e3) 5e-3))
+    (is (close-enough Math/E (nth (solve-iter identity 1 1e-4) 1e4) 5e-4))
+
+    (is (close-enough Math/E (nth (solve-iter identity 1 1e-4) 1e4) 5e-4))
+
+    ;; dy/dt = -y
+    ;; (is (close-enough (Math/sin 1) (nth (solve-iter (fn[x] (* -1 x)) 1 1e-4) 1e4) 1e-2))
+
+    ;; dy^2/dt^2 = -y
+    (is (close-enough (Math/cos 1) (nth (second-order-iter (fn[x] (* -1 x)) 1 1e-4) 1e4) 1e-2))
+
     ;; dy/dt = 1/cos^2(y)
     ;; (is (close-enough (Math/tan 1)
     ;;                   (nth (solve-iter #(/ 1 (square (Math/cos %))) 0 1e-3) 1e3) 1e-3))
@@ -82,3 +132,9 @@
   )
 
 (test-delayed)
+
+(comment
+  (let [x (delay nil)]
+    (force x))
+  (force 1)
+  )
