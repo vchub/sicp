@@ -13,6 +13,7 @@
   (or
    (number? exp)
    (string? exp)
+   (nil? exp)
    (primitive-proc? exp)))
 
 (defn variable? [exp])
@@ -34,7 +35,12 @@
 (defn proc-body [proc])
 (defn proc-params [proc])
 (defn proc-env [proc])
-(defn eval-seq [exp-seq env])
+(defn eval-seq [exp-seq env]
+  (if (empty? (next exp-seq))
+    (eval-f (first exp-seq) env)
+    (recur (next exp-seq) env)
+    ))
+
 (defn extend-env [params args env])
 
 (defn if? [exp](= 'if (operator exp)))
@@ -93,6 +99,10 @@
     (is (= '(+ 1 2) (to-list '(+ 1 2))))
     )
 
+  (testing "eval-seq"
+    (is (= 2 (eval-seq '(1 (+ 1 2) (* 1 2)) {})))
+    (is (= nil (eval-seq '() {})))
+    )
   (testing "apply-f"
     (is (= '+ (first '(+ 1))))
     (is (primitive-proc? '+))
@@ -106,8 +116,6 @@
     (is (= false (eval-f '(> 1 2) {})))
     (is (= 3 (eval-f '(if (< 1 3) 3 0) {})))
     (is (= 0 (eval-f '(if (> 1 3) 3 0) {})))
-    ;; TODO:
-    ;; (is (= 3 (eval-f '(+ 1 2) {})))
     )
 
   (testing "list-of-vals"
