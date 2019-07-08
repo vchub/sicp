@@ -4,14 +4,16 @@
 (def eval-f)
 (def apply-f)
 
+(def primitive-proc-symbols #{'+ '- '* '/ '< '> '=})
+
+(defn primitive-proc? [exp]
+  (primitive-proc-symbols exp))
+
 (defn self-eval? [exp]
   (or
    (number? exp)
    (string? exp)
-   (#{+ - * /} exp)))
-
-(defn primitive-proc? [exp]
-  (#{+ - * /} exp))
+   (primitive-proc? exp)))
 
 (defn variable? [exp])
 (defn get-var-val [exp env])
@@ -35,12 +37,24 @@
 (defn eval-seq [exp-seq env])
 (defn extend-env [params args env])
 
+(defn if? [exp](= 'if (operator exp)))
+(defn if-pred [exp] (second exp))
+(defn if-consequent [exp] (nth exp 2))
+(defn if-alternative [exp](nth exp 3))
+
+(defn eval-if [exp env]
+  (if (true? (eval-f (if-pred exp) env))
+    (eval-f (if-consequent exp) env)
+    (eval-f (if-alternative exp) env)
+    ))
+
 (defn eval-f "string, env {} -> result of application"
   [exp env]
   (cond
     (self-eval? exp) exp
     (variable? exp) (get-var-val exp env)
     (quoteed? exp) (text-of-quot exp)
+    (if? exp) (eval-if exp env)
     (application? exp) (apply-f (eval-f (operator exp) env)
                                 (list-of-vals (operands exp) env))
 
@@ -48,7 +62,7 @@
 
 (defn apply-f [proc args]
   (cond
-    (primitive-proc? proc) (apply proc args)
+    (primitive-proc? proc) (apply (eval proc) args)
     (compound-proc? proc) (eval-seq
                            (proc-body proc)
                            (extend-env
@@ -80,11 +94,16 @@
     )
 
   (testing "apply-f"
-    (is (primitive-proc? +))
-    (is (not (primitive-proc? '+)))
-    (is (= 3 (eval-f (list + 1 2) {})))
-    (is (= [3 2] (list-of-vals [(list + 1 2) 2] {})))
-    (is (= 3 (eval-f (list - (list +  1 2) (list * 1 0)) {})))
+    (is (= '+ (first '(+ 1))))
+    (is (primitive-proc? '+))
+    (is (primitive-proc? '<))
+    (is (not (primitive-proc? +)))
+    (is (application? '(+ 1 2)))
+    (is (= 3 (eval-f '(+ 1 2) {})))
+    ;; (is (= [3 2] (list-of-vals [(list + 1 2) 2] {})))
+    ;; (is (= 3 (eval-f (list - (list +  1 2) (list * 1 0)) {})))
+    ;; (is (= true (eval-f (list > 1 2) {})))
+    ;; (is (= 3 (eval-f (list 'if (list < 1 3) 3 0) {})))
     ;; TODO:
     ;; (is (= 3 (eval-f '(+ 1 2) {})))
     )
@@ -103,7 +122,7 @@
     (is (= "foo" (eval-f '"foo" {})))
     (is (not= 1 (eval-f 2 {})))
     (is (thrown? Exception (eval-f :a {}))))
-    (is (= + (eval-f + {})))
+    (is (= '+ (eval-f '+ {})))
   )
 
 (test-interpreter)
@@ -112,4 +131,9 @@
   (eval `(+ 1 2))
   (to-list '(+ 2 3))
   (unquote '2)
+  (first (quote (1 2)))
+  (first '(1 2))
+  (first '(+ 2))
+  (eval '+)
+  (eval ('+ 1 3))
   )
