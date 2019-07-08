@@ -1,6 +1,7 @@
 (ns sicp.ch4.interpreter
   (:require [clojure.test :refer :all]))
 
+(def env (atom {}))
 (def eval-f)
 (def apply-f)
 
@@ -16,8 +17,9 @@
    (nil? exp)
    (primitive-proc? exp)))
 
-(defn variable? [exp])
-(defn get-var-val [exp env])
+;; TODO: implement
+(defn variable? [exp] (#{'x 'y} exp))
+(defn get-var-val [exp env] (get @env exp))
 
 (defn quoteed? [exp])
 (defn text-of-quot [exp])
@@ -54,12 +56,31 @@
     (eval-f (if-alternative exp) env)
     ))
 
+(defn assignment? [exp](= 'set-f! (operator exp)))
+(defn assignment-var [exp] (second exp))
+(defn assignment-value [exp] (nth exp 2))
+(defn set-var-value! [var-name var-val env]
+  (swap! env assoc var-name var-val))
+
+(defn eval-assignment [exp env]
+  (set-var-value!
+    (assignment-var exp)
+    (eval-f (assignment-value exp) env)
+    env)
+  `ok)
+
+(defn definition? [exp](= 'def-f! (operator exp)))
+(defn eval-definition [exp env]
+  (eval-assignment exp env))
+
 (defn eval-f "string, env {} -> result of application"
   [exp env]
   (cond
     (self-eval? exp) exp
     (variable? exp) (get-var-val exp env)
     (quoteed? exp) (text-of-quot exp)
+    (assignment? exp) (eval-assignment exp env)
+    (definition? exp) (eval-definition exp env)
     (if? exp) (eval-if exp env)
     (application? exp) (apply-f (eval-f (operator exp) env)
                                 (list-of-vals (operands exp) env))
@@ -92,6 +113,19 @@
   `(~@txt))
 
 (deftest test-interpreter
+
+  (testing "eval-assignment"
+    (let [env (atom {})]
+      (is (= `ok (eval-f '(set-f! x 1) env)))
+      (is (= `ok (eval-f '(def-f! y 2) env)))
+      (is (= 1 (get @env 'x)))
+      (is (= 2 (get @env 'y)))
+      (is (= 'x (variable? 'x)))
+      (is (= 'y (variable? 'y)))
+      (is (= 1 (eval-f 'x env)))
+      (is (= 2 (eval-f 'y env)))
+      ))
+
   (testing "Macros"
     (is (= 1 (--> 1)))
     (is (= 5 (--> (+ 1 2)
@@ -103,6 +137,7 @@
     (is (= 2 (eval-seq '(1 (+ 1 2) (* 1 2)) {})))
     (is (= nil (eval-seq '() {})))
     )
+
   (testing "apply-f"
     (is (= '+ (first '(+ 1))))
     (is (primitive-proc? '+))
@@ -146,4 +181,5 @@
   (first '(+ 2))
   (eval '+)
   (eval ('+ 1 3))
+  (contains? {'x 1} 'x)
   )
