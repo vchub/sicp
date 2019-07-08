@@ -83,13 +83,18 @@
     (is (primitive-proc? +))
     (is (not (primitive-proc? '+)))
     (is (= 3 (eval-f (list + 1 2) {})))
+    (is (= [3 2] (list-of-vals [(list + 1 2) 2] {})))
+    (is (= 3 (eval-f (list - (list +  1 2) (list * 1 0)) {})))
+    ;; TODO:
+    ;; (is (= 3 (eval-f '(+ 1 2) {})))
     )
 
   (testing "list-of-vals"
     ;; order of cons evaluation
     ;; (is (cons (#(prn 0)) [(#(prn 1))]))
     (is (= [1 2] (list-of-vals [1 2] {})))
-    (is (= ["foo" 2] (list-of-vals ["foo" 2] {}))))
+    (is (= ["foo" 2] (list-of-vals ["foo" 2] {})))
+    )
 
   (testing "eval"
     (is (= 1 (eval-f 1 {})))
