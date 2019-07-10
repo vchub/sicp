@@ -17,12 +17,16 @@
    (nil? exp)
    (primitive-proc? exp)))
 
+(defn tagged-list [exp tag] (if (seq? exp)
+                              (= (first exp) tag)
+                              false))
+
 ;; TODO: implement
 (defn variable? [exp] (#{'x 'y} exp))
 (defn get-var-val [exp env] (get @env exp))
 
-(defn quoteed? [exp])
-(defn text-of-quot [exp])
+(defn quoted? [exp] (tagged-list exp 'quote))
+(defn text-of-quot [exp] (fnext exp))
 
 (defn operator [exp] (first exp))
 (defn operands [exp] (next exp))
@@ -78,7 +82,7 @@
   (cond
     (self-eval? exp) exp
     (variable? exp) (get-var-val exp env)
-    (quoteed? exp) (text-of-quot exp)
+    (quoted? exp) (text-of-quot exp)
     (assignment? exp) (eval-assignment exp env)
     (definition? exp) (eval-definition exp env)
     (if? exp) (eval-if exp env)
@@ -115,12 +119,19 @@
 (deftest test-interpreter
 
   (testing "expressions"
+    (is (tagged-list '(t 1 2) 't))
+    (is (tagged-list '(quote 1 2) 'quote))
+    (is (quoted? '(quote (1 2))))
+    (is (quoted? ''(1 2)))
+    (is (= '(1 2) (text-of-quot ''(1 2))))
+    (is (= '(1 2) (text-of-quot '(quote (1 2)))))
+
     (is (= '(quote (1 2)) ''(1 2)))
     (is (= (quote (quote (1 2))) ''(1 2)))
     (is (= 'quote (first ''(1 2))))
     (is (symbol? 'x))
-    (is (symbol? ':b))
-    (is (symbol? :b))
+    (is (not (symbol? ':b)))
+    (is (not (symbol? :b)))
     )
 
   (testing "eval-assignment"
