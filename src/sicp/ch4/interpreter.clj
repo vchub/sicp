@@ -114,6 +114,15 @@
 
 (deftest test-interpreter
 
+  (testing "expressions"
+    (is (= '(quote (1 2)) ''(1 2)))
+    (is (= (quote (quote (1 2))) ''(1 2)))
+    (is (= 'quote (first ''(1 2))))
+    (is (symbol? 'x))
+    (is (symbol? ':b))
+    (is (symbol? :b))
+    )
+
   (testing "eval-assignment"
     (let [env (atom {})]
       (is (= `ok (eval-f '(set-f! x 1) env)))
@@ -182,4 +191,7 @@
   (eval '+)
   (eval ('+ 1 3))
   (contains? {'x 1} 'x)
+  '(1 1)
+  ''(1 1)
+  (1 1)
   )
