@@ -36,7 +36,8 @@
     '()
     (cons (eval-f (first ops) env) (list-of-vals (next ops) env))))
 
-(defn application? [exp] (primitive-proc? (operator exp)))
+;; (defn application? [exp] (primitive-proc? (operator exp)))
+(defn application? [exp] (seq? exp))
 
 (defn compound-proc? [proc])
 (defn proc-body [proc])
@@ -78,7 +79,6 @@
 
 
 (defn lambda? [exp] (tagged-list exp 'fn))
-;; TODO: fn can't have a name now
 (defn lambda-with-name [exp] (symbol? (nth exp 1)))
 (defn lambda-params [exp] (if (lambda-with-name exp)
                             (nth exp 2)
@@ -126,6 +126,9 @@
                             (proc-params proc)
                             args
                             (proc-env proc)))
+    ;; TODO: remove.  for tests now
+    (fn? proc) (apply proc args)
+
     :else (throw (Exception. (format "Unknown proc type: Apply %s" proc)))))
 
 ;; Macros experiments
@@ -162,7 +165,9 @@
       (is (fn? (eval-f '(fn f-x [x] (+ 1 x)) env)))
       (is (fn? (eval-f '(fn f-x [x] (+ 1 x)) env)))
       (is (= `ok (eval-f '(def-f! ff (fn f-x [x] (+ 1 x)) 1) env)))
-      ;; (is (= 2 (eval-f '(ff 1) env)))
+      (is (fn?  (get-var-val 'ff env)))
+      (is (= 2  ((get-var-val 'ff env) 1)))
+      (is (= 2 (eval-f '(ff 1) env)))
       ))
 
   (testing "expressions"
