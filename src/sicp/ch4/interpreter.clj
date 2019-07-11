@@ -77,30 +77,26 @@
   (eval-assignment exp env))
 
 
-;; (defmacro make-prodedure [params body env]
-;;    (prn '(~params) (type '(~params)))
-;;     ;; (prn body (type body))
-;;   ;; '(fn ~params ~body)
-;; )
-
 (defn lambda? [exp] (tagged-list exp 'fn))
 ;; TODO: fn can't have a name now
-(defn lambda-params [exp] (nth exp 1))
-(defn lambda-body [exp] (nth exp 2))
+(defn lambda-with-name [exp] (symbol? (nth exp 1)))
+(defn lambda-params [exp] (if (lambda-with-name exp)
+                            (nth exp 2)
+                            (nth exp 1)))
+(defn lambda-body [exp] (if (lambda-with-name exp)
+                          (nth exp 3)
+                          (nth exp 2)))
 (defn make-lambda
   ([params body]
-  (list 'fn params body))
+   (list 'fn params body))
   ([fname params body]
-  (list 'fn fname params body)
-  )
-  )
+   (list 'fn fname params body)))
 
 (defn make-prodedure
   ([params body env]
-  (eval (make-lambda params body)))
+   (eval (make-lambda params body)))
   ([fname params body env]
-  (eval (make-lambda fname params body)))
-  )
+   (eval (make-lambda fname params body))))
 
 (defn do? [exp] (tagged-list exp 'begin))
 (defn begin-actions [exp] (next exp))
@@ -153,12 +149,20 @@
     (is (lambda? '(fn [x] (+ 1 x))))
     (is (lambda? '(fn fx [x] (+ 1 x))))
     (is (=  '(fn [x] (+ 1 x)) (make-lambda '[x] '(+ 1 x))))
-    (is (=  '(fn f-x [x y] (do (+ y x) (+ x y))) (make-lambda 'f-x '[x y] '(do (+ y x)
-                                                                     (+ x y)))))
+    (let [exp1 '(fn [x] (+ 1 x))
+          exp2 '(fn f-x [x y] (+ 1 x))]
+      (is (= '[x]  (lambda-params exp1)))
+      (is (= '[x y]  (lambda-params exp2))))
+
+    (is (=  '(fn f-x [x y] (do (+ y x) (+ x y)))
+            (make-lambda 'f-x '[x y] '(do (+ y x) (+ x y)))))
 
     (let [env (atom {})]
       (is (fn? (eval-f '(fn [x] (+ 1 x)) env)))
       (is (fn? (eval-f '(fn f-x [x] (+ 1 x)) env)))
+      (is (fn? (eval-f '(fn f-x [x] (+ 1 x)) env)))
+      (is (= `ok (eval-f '(def-f! ff (fn f-x [x] (+ 1 x)) 1) env)))
+      ;; (is (= 2 (eval-f '(ff 1) env)))
       ))
 
   (testing "expressions"
