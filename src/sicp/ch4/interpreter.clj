@@ -15,14 +15,15 @@
    (number? exp)
    (string? exp)
    (nil? exp)
-   (primitive-proc? exp)))
+   (primitive-proc? exp)
+   ))
 
 (defn tagged-list [exp tag] (if (seq? exp)
                               (= (first exp) tag)
                               false))
 
 ;; TODO: implement
-(defn variable? [exp] (#{'x 'y} exp))
+(def variable? symbol?)
 (defn get-var-val [exp env] (get @env exp))
 
 (defn quoted? [exp] (tagged-list exp 'quote))
@@ -60,7 +61,7 @@
     (eval-f (if-alternative exp) env)
     ))
 
-(defn assignment? [exp](= 'set-f! (operator exp)))
+(defn assignment? [exp](tagged-list exp 'set-f!))
 (defn assignment-var [exp] (second exp))
 (defn assignment-value [exp] (nth exp 2))
 (defn set-var-value! [var-name var-val env]
@@ -73,9 +74,18 @@
     env)
   `ok)
 
-(defn definition? [exp](= 'def-f! (operator exp)))
+(defn definition? [exp](tagged-list exp 'def-f!))
 (defn eval-definition [exp env]
   (eval-assignment exp env))
+
+(defn lambda? [exp] (tagged-list exp 'fn))
+(defn make-prodedure [params body env] )
+;; TODO: fn can't have a name now
+(defn lambda-params [exp] (nth exp 1))
+(defn lambda-body [exp] (nth exp 2))
+
+(defn begin? [exp] (tagged-list exp 'begin))
+(defn begin-actions [exp] (next exp))
 
 (defn eval-f "string, env {} -> result of application"
   [exp env]
@@ -86,6 +96,8 @@
     (assignment? exp) (eval-assignment exp env)
     (definition? exp) (eval-definition exp env)
     (if? exp) (eval-if exp env)
+    (lambda? exp) (make-prodedure (lambda-params exp) (lambda-body exp) env)
+    (begin? exp) (eval-seq (begin-actions exp) env)
     (application? exp) (apply-f (eval-f (operator exp) env)
                                 (list-of-vals (operands exp) env))
 
@@ -140,10 +152,15 @@
       (is (= `ok (eval-f '(def-f! y 2) env)))
       (is (= 1 (get @env 'x)))
       (is (= 2 (get @env 'y)))
-      (is (= 'x (variable? 'x)))
-      (is (= 'y (variable? 'y)))
+      (is (variable? 'x))
+      (is (variable? 'xb))
       (is (= 1 (eval-f 'x env)))
       (is (= 2 (eval-f 'y env)))
+      (is (= 3 (eval-f '(+ x y) env)))
+      (is (= `ok (eval-f '(set-f! x (/ 4 2)) env)))
+      (is (= 4 (eval-f '(+ x y) env)))
+      (is (= `ok (eval-f '(def-f! z (* x y)) env)))
+      (is (= 8 (eval-f '(+ x y z) env)))
       ))
 
   (testing "Macros"
