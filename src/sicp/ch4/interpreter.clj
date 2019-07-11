@@ -79,7 +79,20 @@
   (eval-assignment exp env))
 
 (defn lambda? [exp] (tagged-list exp 'fn))
-(defn make-prodedure [params body env] )
+
+(defn make-prodedure [params body env]
+;;  (prn params (type params))
+;;   (prn body (type body))
+  ;; (list 'fn params body)
+  (eval (list 'fn params body))
+)
+
+;; (defmacro make-prodedure [params body env]
+;;    (prn '(~params) (type '(~params)))
+;;     ;; (prn body (type body))
+;;   ;; '(fn ~params ~body)
+;; )
+
 ;; TODO: fn can't have a name now
 (defn lambda-params [exp] (nth exp 1))
 (defn lambda-body [exp] (nth exp 2))
@@ -128,7 +141,17 @@
 (defmacro to-list [txt]
   `(~@txt))
 
+
+
 (deftest test-interpreter
+
+  (testing "lambda?"
+    (is (lambda? '(fn [x])))
+    (is (lambda? '(fn [x] (+ 1 x))))
+    (let [env (atom {})]
+      (is (fn? (eval-f '(fn [x] (+ 1 x)) env)))
+    )
+    )
 
   (testing "expressions"
     (is (tagged-list '(t 1 2) 't))
@@ -164,10 +187,14 @@
       ))
 
   (testing "Macros"
-    (is (= 1 (--> 1)))
-    (is (= 5 (--> (+ 1 2)
-                  (+ 2))))
     (is (= '(+ 1 2) (to-list '(+ 1 2))))
+    (is (= 1 (--> 1)))
+    (is (= 6 (--> (+ 1 2)
+                  (+ 2)
+                  inc)))
+    (is (= 6 (-> (+ 1 2)
+                  (+ 2)
+                  inc)))
     )
 
   (testing "eval-seq"
@@ -222,4 +249,19 @@
   '(1 1)
   ''(1 1)
   (1 1)
+  (vec '[x])
+  (fn [x] )
+  (let [p 'x
+        ;; b '(+ x 1)
+        b '(+ p 1)
+        ;; f (fn (vec p))
+        ;; f (fn (vector p))
+        ;; f (fn [p] (+ p 1))
+        f (fn [p] b)
+        ]
+    (f 2))
+  (read-string "(if true :t :f)")
+  (eval (read-string "(if true :t :f)"))
+  (eval "(if true :t :f)")
+  (eval '(if true :t :f))
   )
