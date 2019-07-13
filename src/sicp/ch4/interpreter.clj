@@ -68,12 +68,14 @@
 
 (defn make-cond [cond-pairs env]
   (when (seq cond-pairs)
-    (let [pred (first cond-pairs)
-          t-exp (second cond-pairs)]
-      (if (= pred 'else)
-       (eval-f t-exp env)
-       (make-if pred t-exp (make-cond (drop 2 cond-pairs) env)
-            env)))))
+    (let [[pred t-exp & cond-pairs] cond-pairs]
+      (cond
+        (and (= pred 'else) (not (empty? cond-pairs)))
+        (throw (Exception. "cond, else is not the last clause"))
+        (= pred 'else) (eval-f t-exp env)
+        :else
+        (make-if pred t-exp (make-cond cond-pairs env)
+                 env)))))
 
 (defn eval-cond [exp env]
   {:pre (even? (count (cond-pairs exp)))}
@@ -244,13 +246,17 @@
     (is (= 2 (eval-f '(cond
                         (> 1 3) 3
                         else (* 1 2)) {})))
+    (is (thrown? Exception (eval-f '(cond
+                                      (> 1 3) 3
+                                      else (* 1 2)
+                                      else 2) {})))
     (is (= 6 (eval-f '(cond
                         (> 1 3) 1
                         (> 2 3) 2
                         (= 0 0) (if (< 1 2) (do
                                               0
                                               (* 2 3))
-                                  (* 1 0))) {}))))
+                                    (* 1 0))) {}))))
 
   (testing "apply-f"
     (is (= '+ (first '(+ 1))))
@@ -306,4 +312,6 @@
   (eval (read-string "(if true :t :f)"))
   (eval "(if true :t :f)")
   (eval '(if true :t :f))
-  (list* 1 [2] [3]))
+  (list* 1 [2] [3])
+  (ancestors java.util.ArrayList)
+  )
