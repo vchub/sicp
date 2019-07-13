@@ -50,15 +50,32 @@
 
 (defn extend-env [params args env])
 
-(defn if? [exp] (= 'if (operator exp)))
+(defn if? [exp] (tagged-list exp 'if))
 (defn if-pred [exp] (second exp))
 (defn if-consequent [exp] (nth exp 2))
 (defn if-alternative [exp] (nth exp 3))
 
+(defn make-if [pred t-exp f-exp env]
+  (if (true? (eval-f pred env))
+    (eval-f t-exp env)
+    (eval-f f-exp env)))
+
 (defn eval-if [exp env]
-  (if (true? (eval-f (if-pred exp) env))
-    (eval-f (if-consequent exp) env)
-    (eval-f (if-alternative exp) env)))
+  (make-if (if-pred exp) (if-consequent exp) (if-alternative exp) env))
+
+(defn cond? [exp] (tagged-list exp 'cond))
+(defn cond-pairs [exp] (drop 1 exp))
+
+(defn make-cond [cond-pairs env]
+  (when (seq cond-pairs)
+    (let [pred (first cond-pairs)
+          t-exp (second cond-pairs)]
+      (make-if pred t-exp (make-cond (drop 2 cond-pairs) env)
+            env))))
+
+(defn eval-cond [exp env]
+  {:pre (even? (count (cond-pairs exp)))}
+  (make-cond (cond-pairs exp) env))
 
 (defn assignment? [exp] (tagged-list exp 'set-f!))
 (defn assignment-var [exp] (second exp))
@@ -76,7 +93,6 @@
 (defn definition? [exp] (tagged-list exp 'def-f!))
 (defn eval-definition [exp env]
   (eval-assignment exp env))
-
 
 (defn lambda? [exp] (tagged-list exp 'fn))
 (defn lambda-with-name [exp] (symbol? (nth exp 1)))
@@ -110,6 +126,7 @@
     (assignment? exp) (eval-assignment exp env)
     (definition? exp) (eval-definition exp env)
     (if? exp) (eval-if exp env)
+    (cond? exp) (eval-cond exp env)
     (lambda? exp) (make-prodedure (lambda-params exp) (lambda-body exp) env)
     (do? exp) (eval-seq (begin-actions exp) env)
     (application? exp) (apply-f (eval-f (operator exp) env)
@@ -167,8 +184,7 @@
       (is (= `ok (eval-f '(def-f! ff (fn f-x [x] (+ 1 x)) 1) env)))
       (is (fn?  (get-var-val 'ff env)))
       (is (= 2  ((get-var-val 'ff env) 1)))
-      (is (= 2 (eval-f '(ff 1) env)))
-      ))
+      (is (= 2 (eval-f '(ff 1) env)))))
 
   (testing "expressions"
     (is (tagged-list '(t 1 2) 't))
@@ -215,6 +231,22 @@
     (is (= 2 (eval-seq '(1 (+ 1 2) (* 1 2)) {})))
     (is (= nil (eval-seq '() {}))))
 
+  (testing "if and cond"
+    (is (= true (eval-f '(< 1 2) {})))
+    (is (= false (eval-f '(> 1 2) {})))
+    (is (= 3 (eval-f '(if (< 1 3) 3 0) {})))
+    ;; (is (= 3 (eval-f '(if false 3 0) {})))
+    (is (= 0 (eval-f '(if (> 1 3) 3 0) {})))
+    (is (= 0 (eval-f '(if nil 3 0) {})))
+    (is (= 2 (eval-f '(if (> 1 3) 3 (* 1 2)) {})))
+    (is (= 2 (eval-f '(cond
+                        (> 1 3) 3
+                        (< 1 3) (* 1 2)) {})))
+    (is (= 6 (eval-f '(cond
+                        (> 1 3) 1
+                        (> 2 3) 2
+                        (= 0 0) (if (< 1 2) (* 2 3) (* 1 0))) {}))))
+
   (testing "apply-f"
     (is (= '+ (first '(+ 1))))
     (is (primitive-proc? '+))
@@ -223,11 +255,7 @@
     (is (application? '(+ 1 2)))
     (is (= 3 (eval-f '(+ 1 2) {})))
     (is (= [3 2] (list-of-vals ['(+ 1 2) 2] {})))
-    (is (= 3 (eval-f '(- (+  1 2) (* 1 0)) {})))
-    (is (= true (eval-f '(< 1 2) {})))
-    (is (= false (eval-f '(> 1 2) {})))
-    (is (= 3 (eval-f '(if (< 1 3) 3 0) {})))
-    (is (= 0 (eval-f '(if (> 1 3) 3 0) {}))))
+    (is (= 3 (eval-f '(- (+  1 2) (* 1 0)) {}))))
 
   (testing "list-of-vals"
     ;; order of cons evaluation
