@@ -70,8 +70,10 @@
   (when (seq cond-pairs)
     (let [pred (first cond-pairs)
           t-exp (second cond-pairs)]
-      (make-if pred t-exp (make-cond (drop 2 cond-pairs) env)
-            env))))
+      (if (= pred 'else)
+       (eval-f t-exp env)
+       (make-if pred t-exp (make-cond (drop 2 cond-pairs) env)
+            env)))))
 
 (defn eval-cond [exp env]
   {:pre (even? (count (cond-pairs exp)))}
@@ -114,7 +116,7 @@
   ([fname params body env]
    (eval (make-lambda fname params body))))
 
-(defn do? [exp] (tagged-list exp 'begin))
+(defn do? [exp] (tagged-list exp 'do))
 (defn begin-actions [exp] (next exp))
 
 (defn eval-f "string, env {} -> result of application"
@@ -241,11 +243,14 @@
     (is (= 2 (eval-f '(if (> 1 3) 3 (* 1 2)) {})))
     (is (= 2 (eval-f '(cond
                         (> 1 3) 3
-                        (< 1 3) (* 1 2)) {})))
+                        else (* 1 2)) {})))
     (is (= 6 (eval-f '(cond
                         (> 1 3) 1
                         (> 2 3) 2
-                        (= 0 0) (if (< 1 2) (* 2 3) (* 1 0))) {}))))
+                        (= 0 0) (if (< 1 2) (do
+                                              0
+                                              (* 2 3))
+                                  (* 1 0))) {}))))
 
   (testing "apply-f"
     (is (= '+ (first '(+ 1))))
