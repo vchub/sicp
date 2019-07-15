@@ -31,22 +31,35 @@
                                       (map #(eval-f % env) (next exp))
                                       env))
 
-(def compound-proc? seq?)
+(defmulti apply-f (fn [proc args env]
+                    (cond
+                      (seq? proc) 'compound-proc
+                      :else 'primitive-proc)))
+
+;; (def compound-proc? seq?)
 (defn proc-params [exp] (second exp))
 (defn proc-body [exp] (drop 2 exp))
 (defn extend-env [env params args]
   (let [p-env (into @env (map vector params args))]
     (atom p-env)))
 
-(defn apply-f
-  "proc is either '(fn[x y] ....) or primitive-proc"
-  [proc args env]
-  (if (compound-proc? proc)
-    (let [body (proc-body proc)
-          env (extend-env env (proc-params proc) args)
-          ret (reduce (fn [acc exp] (eval-f exp env)) nil body)]
-      ret)
-    (apply proc args)))
+(defmethod apply-f 'compound-proc [proc args env]
+  (let [body (proc-body proc)
+        env (extend-env env (proc-params proc) args)
+        ret (reduce (fn [acc exp] (eval-f exp env)) nil body)]
+    ret))
+
+(defmethod apply-f 'primitive-proc [proc args env] (apply proc args))
+
+;; (defn apply-f
+;;   "proc is either '(fn[x y] ....) or primitive-proc"
+;;   [proc args env]
+;;   (if (compound-proc? proc)
+;;     (let [body (proc-body proc)
+;;           env (extend-env env (proc-params proc) args)
+;;           ret (reduce (fn [acc exp] (eval-f exp env)) nil body)]
+;;       ret)
+;;     (apply proc args)))
 
 (deftest test-multi-method
   (testing "eval-f"
@@ -78,6 +91,7 @@
       (is (= 3 (eval-f '((fn [] 3)))))
       (is (= -1 (eval-f '((fn []
                             (def-f! sum (fn [x y] (- x y)))
+                            (* 2 8)
                             (sum 2 3))))))
       ;; in the main scope sum is the same
       (is (= 5 (eval-f '(sum 2 3))))
