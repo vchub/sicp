@@ -24,6 +24,18 @@
 (defmethod eval-f 'if [exp env] (if (eval-f (second exp) env)
                                   (eval-f (nth exp 2) env)
                                   (eval-f (nth exp 3) env)))
+
+(defn split-for-let [xs] (loop [ps [] as [] xs xs]
+                           (if (empty? xs)
+                             [ps as]
+                             (let [[p a & xs] xs]
+                               (recur (conj ps p) (conj as a) xs)))))
+
+(defmethod eval-f 'let [exp env] (let [body (drop 2 exp)
+                                       [params args] (split-for-let (second exp))
+                                       f (list* 'fn params body)]
+                                   (eval-f (list* f args) env)))
+
 (defmethod eval-f :default [exp env] (apply-f
                                        ;; fn
                                       (eval-f (first exp) env)
@@ -65,6 +77,13 @@
   (testing "eval-f"
     (let [env (make-env)
           eval-f (fn [x] (eval-f x env))]
+      (testing "let"
+        (is (= '([x y] [1 2]) (split-for-let '[x 1 y 2])))
+        (is (= '([x] [1]) (split-for-let '[x 1])))
+        (is (= 1 (eval-f '(let [x 1] x))))
+        (is (= 4 (eval-f '(let [x 2] (* x x)))))
+        (is (= 6 (eval-f '(let [x 2 y 3] (* x y))))))
+
       (is (= 1 (eval-f 1)))
       (is (= "foo" (eval-f "foo")))
       (is (= nil (eval-f 'x)))
@@ -144,4 +163,5 @@
 
 (comment
   ({"some" 1} "some")
-  ({"some" 1} :k))
+  ({"some" 1} :k)
+  (let [] 1))
