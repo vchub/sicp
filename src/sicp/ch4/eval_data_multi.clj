@@ -31,10 +31,21 @@
                              (let [[p a & xs] xs]
                                (recur (conj ps p) (conj as a) xs)))))
 
+(defmethod eval-f 'let-seq [exp env] (let [body (drop 2 exp)
+                                           [params args] (split-for-let (second exp))
+                                           f (list* 'fn params body)]
+                                       (eval-f (list* f args) env)))
+
+(defn eval-seq [exp-seq env]
+  (reduce (fn [acc exp] (eval-f exp env)) nil exp-seq))
+
 (defmethod eval-f 'let [exp env] (let [body (drop 2 exp)
-                                       [params args] (split-for-let (second exp))
-                                       f (list* 'fn params body)]
-                                   (eval-f (list* f args) env)))
+                                       pairs (second exp)]
+                                   (if (empty? pairs)
+                                     (eval-seq body env)
+                                     (let [[param arg & pairs] pairs
+                                           f (list 'fn [param] (list* 'let pairs body))]
+                                       (eval-f (list f arg) env)))))
 
 (defmethod eval-f :default [exp env] (apply-f
                                        ;; fn
@@ -58,7 +69,7 @@
 (defmethod apply-f 'compound-proc [proc args env]
   (let [body (proc-body proc)
         env (extend-env env (proc-params proc) args)
-        ret (reduce (fn [acc exp] (eval-f exp env)) nil body)]
+        ret (eval-seq body env)]
     ret))
 
 (defmethod apply-f 'primitive-proc [proc args env] (apply proc args))
@@ -77,12 +88,27 @@
   (testing "eval-f"
     (let [env (make-env)
           eval-f (fn [x] (eval-f x env))]
+
       (testing "let"
+        (is (= 1 (eval-f '(let [x 1] x))))
+        (is (= 36 (eval-f '[let [x (* 2 3)] (+ 2 2) (* x x)])))
+        (is (= 6 (eval-f '(let [x 2 y 3] (* x y)))))
+        (is (= 4 (eval-f '(let [x 2 y x] (* x y)))))
+        (is (= 12 (eval-f '(let [f (fn [x] x) double-f (fn [x] (+ (f x) (f x)))]
+                             (* (f 2) (double-f 3))))))
+        (is (= 6 (eval-f '(let [factorial (fn [n]
+                                            (if (< n 2)
+                                              1
+                                              (* n (factorial (- n 1)))))]
+                            (factorial 3))))))
+
+      (testing "let-seq"
         (is (= '([x y] [1 2]) (split-for-let '[x 1 y 2])))
         (is (= '([x] [1]) (split-for-let '[x 1])))
-        (is (= 1 (eval-f '(let [x 1] x))))
-        (is (= 4 (eval-f '(let [x 2] (* x x)))))
-        (is (= 6 (eval-f '(let [x 2 y 3] (* x y))))))
+        (is (= 1 (eval-f '(let-seq [x 1] x))))
+        (is (= 4 (eval-f '(let-seq [x 2] (* x x)))))
+        (is (= 6 (eval-f '(let-seq [x 2 y 3] (+ 2 2) (* x y)))))
+        (is (thrown? Exception (eval-f '(let-seq [x 2 y x] (* x y))))))
 
       (is (= 1 (eval-f 1)))
       (is (= "foo" (eval-f "foo")))
