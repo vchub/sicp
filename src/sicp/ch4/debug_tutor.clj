@@ -1,5 +1,35 @@
 (ns sicp.ch4.debug-tutor
-  (:require [clojure.test :refer :all]))
+  (:require [clojure.test :refer :all]
+            [clojure.test.check :as tc]
+            [clojure.test.check.generators :as gen]
+            [clojure.test.check.properties :as prop]
+            [clojure.test.check.clojure-test :refer [defspec]]))
+
+(def property
+  (prop/for-all [v (gen/vector gen/small-integer)]
+                (let [s (sort v)]
+                  (and (= (count v) (count s))
+                       (or (empty? s)
+                           (apply <= s))))))
+
+;; (tc/quick-check 100 property)
+
+;; ((defspec sort-property 100 property))
+;; (sort-property)
+
+(deftest run-quick-check
+  (prn (gen/sample gen/small-integer))
+  (prn (gen/sample gen/small-integer 20))
+  (prn (gen/sample (gen/fmap set (gen/vector gen/small-integer))))
+  (prn (->> (gen/vector gen/small-integer)
+            (gen/fmap set)
+            ;; (gen/such-that (complement empty?))
+            (gen/such-that not-empty)
+            (gen/sample)))
+  (def nested-vector-of-boolean (gen/recursive-gen gen/vector gen/boolean))
+  (prn (gen/sample nested-vector-of-boolean))
+  ((defspec sort-property 100 property)))
+(run-quick-check)
 
 (defn foo
   [n]
@@ -11,17 +41,13 @@
   [xs]
   (if (empty? (drop 1 xs))
     [(first xs)]
-    (vector (first xs) (steps (drop 1 xs)))
-    )
-  )
+    (vector (first xs) (steps (drop 1 xs)))))
 
 (defn steps-lazy "[x] -> stream [x1 [x2 [x3 ...]]]"
   [xs]
   (if (empty? (drop 1 xs))
     [(first xs)]
-    (lazy-seq (vector (first xs) (steps (drop 1 xs))))
-    )
-  )
+    (lazy-seq (vector (first xs) (steps (drop 1 xs))))))
 
 (defn rand-range [n] (repeatedly #(rand-int n)))
 
@@ -34,23 +60,21 @@
                 ;; depends on distribution. may be not first
                 p (first xs)
                 x1 (quicksort-recur (filter #(<= % p) (rest xs)))
-                x2 (quicksort-recur (filter #(> % p) (rest xs)))
-                ]
-            (lazy-cat x1 [p] x2)))
-  )
+                x2 (quicksort-recur (filter #(> % p) (rest xs)))]
+            (lazy-cat x1 [p] x2))))
 
 (defn sort-parts [work]
   (lazy-seq
-    (loop [[part & parts] work]
-      (if-let [[pivot & work] (seq part)]
-        (let [less? #(< % pivot)]
-              (recur (list*
-                       (filter less? work)
-                       pivot
-                       (remove less? work)
-                       parts)))
-        (when-let [[x & parts] parts]
-          (cons x (sort-parts parts)))))))
+   (loop [[part & parts] work]
+     (if-let [[pivot & work] (seq part)]
+       (let [less? #(< % pivot)]
+         (recur (list*
+                 (filter less? work)
+                 pivot
+                 (remove less? work)
+                 parts)))
+       (when-let [[x & parts] parts]
+         (cons x (sort-parts parts)))))))
 
 (defn quicksort-lazy [xs]
   (sort-parts (list xs)))
@@ -74,9 +98,7 @@
       (is (= (sort xs) (quicksort-recur xs)))
       (is (= (sort xs) (quicksort-lazy xs)))
       ;; (is (= (sort (take 10 s)) (take 10 (quicksort-recur s))))
-      )
-
-    )
+      ))
 
   (testing "steps"
     (is (= [1 [2]] (steps [1 2])))
@@ -85,8 +107,7 @@
     (is (= [1 [2 [3]]] (steps-lazy [1 2 3])))
     ;; (is (= 1 (first (steps-lazy (range 1e3)))))
     ;; (is (= 1 (first (drop 1 (steps-lazy (range 1e3))))))
-    )
-  )
+    ))
 
 (test-debug-tutor)
 
@@ -102,4 +123,5 @@
   (if-let [x (seq [1])] x)
   (if-let [x (seq [])] 5)
   (if-let [x (seq 1)] x)
-  )
+  (< 1 2 4 3)
+  (apply < '(1 2 3)))

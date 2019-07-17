@@ -4,7 +4,7 @@
 (def eval-f)
 (def apply-f)
 
-(def primitive-proc-symbols #{'+ '- '* '/ '< '> '=})
+(def primitive-proc-symbols #{'+ '- '* '/ '< '> '= 'prn})
 
 (defn make-env [] (atom (-> (into {} (map #(vector % (eval %))) primitive-proc-symbols)
                             ;; (assoc 'true true)
@@ -13,17 +13,30 @@
 
 (defmulti eval-f (fn [exp env]
                    (cond
-                     (or (number? exp) (string? exp) (boolean? exp)) 'self-eval
+                     (or (number? exp) (string? exp)
+                         (boolean? exp)
+                         (nil? exp)
+                         (and (seq? exp) (empty? exp))) 'self-eval
                      (symbol? exp) 'symbol
                      :else (first exp))))
 
 (defmethod eval-f 'self-eval [exp env] exp)
 (defmethod eval-f 'symbol [exp env] (get @env exp))
-(defmethod eval-f 'def-f! [exp env] (swap! env  assoc (second exp) (eval-f (nth exp 2) env)))
+(defmethod eval-f 'def-f! [exp env]
+  (let [v (eval-f (nth exp 2) env)] (swap! env  assoc (second exp) v) v))
+
 (defmethod eval-f 'fn [exp env] exp)
 (defmethod eval-f 'if [exp env] (if (eval-f (second exp) env)
                                   (eval-f (nth exp 2) env)
                                   (eval-f (nth exp 3) env)))
+
+(defmethod eval-f 'and [exp env] (loop [acc (eval-f (fnext exp) env) exp (nnext exp)]
+                                   (cond
+                                     (empty? exp) acc
+                                     (not acc) false
+                                     :else (recur (eval-f (first exp) env) (next exp)))))
+
+(defmethod eval-f 'not [exp env] (not (eval-f (second exp) env)))
 
 (defn split-for-let [xs] (loop [ps [] as [] xs xs]
                            (if (empty? xs)
@@ -53,8 +66,6 @@
                                         recur (list* 'fn params body)
                                         pairs (list* 'recur recur pairs)
                                         f (list 'let pairs (list* 'recur params))]
-                                    (prn recur)
-                                    (prn f)
                                     (eval-f f env)))
 
 (defmethod eval-f :default [exp env] (apply-f
@@ -94,10 +105,46 @@
 ;;       ret)
 ;;     (apply proc args)))
 
+(defn repl- []
+  (let [env (make-env)
+        prompt (symbol "#")]
+    (loop []
+      (print prompt)
+      (flush)
+      (let [line (read-string (read-line))]
+        (if (= line 'C)
+          'ok
+          (do
+            (prn line)
+            (prn (eval-f line env))
+          ;; (Thread/sleep 100)
+            (recur)))))))
+
 (deftest test-multi-method
   (testing "eval-f"
     (let [env (make-env)
           eval-f (fn [x] (eval-f x env))]
+
+      (testing "prn"
+        (is (= 1 (eval-f '((fn []
+                             ;; (prn "test")
+                             ;; (prn (< 1 0))
+                             1))))))
+
+      (testing "and not"
+        (is (= 3 (and 0 1 2 3)))
+        (is (= false (and 0 (< 1 0) 1 2 3)))
+        (is (= 3 (eval-f '(and 0 1 2 3))))
+        (is (= false (eval-f '(and 0 1 (< 1 0) 2 (< 0 1)))))
+        (is (= false (eval-f '(not 1))))
+        (is (= true (eval-f '(not false))))
+        (is (= true (eval-f '(not (= 1 2))))))
+
+      (testing "truthness"
+        (is (= true (eval-f 'true)))
+        (is (= false (eval-f 'false)))
+        (is (= nil (eval-f 'nil)))
+        (is (= '() (eval-f '()))))
 
       (testing "loop"
         (is (= 15 (loop [n 5 acc (- n 5)]
@@ -151,6 +198,8 @@
       (is (= true (eval-f 'true)))
       (is (= 2/3 (eval-f '(if true (/ 2 3) (* 1 4)))))
       (is (= 2/3 (eval-f '(if "some" (/ 2 3) (* 1 4)))))
+      (is (= 2/3 (eval-f '(if () (/ 2 3) (* 1 4)))))
+      (is (= 4 (eval-f '(if nil (/ 2 3) (* 1 4)))))
       (is (= 4 (eval-f '(if (< 1 0) (/ 2 3) (* 1 4)))))
 
       (eval-f '(def-f! sum (fn [x y] (+ x y))))

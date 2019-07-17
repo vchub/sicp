@@ -14,4 +14,5 @@
                              [lein-cljfmt "0.6.3"]
                              ]
                    :dependencies [[lein-cljfmt "0.6.3"]
-                                  [org.clojure/math.combinatorics "0.1.5"]]}})
+                                  [org.clojure/math.combinatorics "0.1.5"]
+                                  [org.clojure/test.check "0.10.0-RC1"]]}})
