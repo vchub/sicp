@@ -47,6 +47,16 @@
                                            f (list 'fn [param] (list* 'let pairs body))]
                                        (eval-f (list f arg) env)))))
 
+(defmethod eval-f 'loop [exp env] (let [body (drop 2 exp)
+                                        pairs (second exp)
+                                        [params args] (split-for-let pairs)
+                                        recur (list* 'fn params body)
+                                        pairs (list* 'recur recur pairs)
+                                        f (list 'let pairs (list* 'recur params))]
+                                    (prn recur)
+                                    (prn f)
+                                    (eval-f f env)))
+
 (defmethod eval-f :default [exp env] (apply-f
                                        ;; fn
                                       (eval-f (first exp) env)
@@ -88,6 +98,23 @@
   (testing "eval-f"
     (let [env (make-env)
           eval-f (fn [x] (eval-f x env))]
+
+      (testing "loop"
+        (is (= 15 (loop [n 5 acc (- n 5)]
+                    (if (neg? n)
+                      acc
+                      (recur (dec n) (+ n acc))))))
+
+        (is (= 15 (eval-f '(let [recur (fn [n acc]
+                                         (if (< n 0)
+                                           acc
+                                           (recur (- n 1) (+ n acc))))]
+                             (recur 5 0)))))
+
+        (is (= 15 (eval-f '(loop [n 5 acc (- n 5)]
+                             (if (< n 0)
+                               acc
+                               (recur (- n 1) (+ n acc))))))))
 
       (testing "let"
         (is (= 1 (eval-f '(let [x 1] x))))
