@@ -107,7 +107,7 @@
 
 (defn repl- []
   (let [env (make-env)
-        prompt (symbol "#")]
+        prompt (symbol "# ")]
     (loop []
       (print prompt)
       (flush)

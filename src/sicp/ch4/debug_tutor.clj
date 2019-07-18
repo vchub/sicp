@@ -5,6 +5,46 @@
             [clojure.test.check.properties :as prop]
             [clojure.test.check.clojure-test :refer [defspec]]))
 
+;; http://matt.might.net/articles/quick-quickcheck/
+(defspec odd-after-even
+  100
+  (prop/for-all [n gen/large-integer]
+                (if (even? n)
+                  (odd? (inc n))
+                  (even? (inc n)))))
+
+(defspec is-2n-prime
+  ;; Mersenne conjecture:
+  ;; is 2^n - 1 is prime number
+  100
+  (prop/for-all [n (->> (gen/such-that #(.isProbablePrime (biginteger %) 5) gen/nat)
+                        (gen/fmap #(dec (Math/pow 2 %))))]
+                (.isProbablePrime (biginteger n) 5)))
+
+(defn collatz [n max-times]
+  (loop [n n i 0]
+    (cond
+    (> i max-times) n
+    (= 1 n) 1
+    (even? n) (recur (/ n 2) (inc i))
+    :else (recur (+ (* 3 n) 1) (inc i)))))
+
+(defspec collatz-conjecture
+  ;; collatz function eventually reach 1
+  1000
+  (prop/for-all [n (->> gen/nat
+                        (gen/such-that pos?))]
+                (= 1 (collatz n 200))))
+
+
+(deftest run-nubers-specs
+  (odd-after-even)
+  ;; (is-2n-prime)
+  (collatz-conjecture)
+  )
+
+(run-nubers-specs)
+
 (def property
   (prop/for-all [v (gen/vector gen/small-integer)]
                 (let [s (sort v)]
@@ -28,8 +68,9 @@
             (gen/sample)))
   (def nested-vector-of-boolean (gen/recursive-gen gen/vector gen/boolean))
   (prn (gen/sample nested-vector-of-boolean))
+
   ((defspec sort-property 100 property)))
-(run-quick-check)
+;; (run-quick-check)
 
 (defn foo
   [n]
