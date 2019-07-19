@@ -1,5 +1,9 @@
 (ns sicp.ch4.eval-data-multi
-  (:require [clojure.test :refer :all]))
+  (:require [clojure.test :refer :all]
+            [clojure.test.check :as tc]
+            [clojure.test.check.generators :as gen]
+            [clojure.test.check.properties :as prop]
+            [clojure.test.check.clojure-test :refer [defspec]]))
 
 (def eval-f)
 (def apply-f)
@@ -22,6 +26,7 @@
 
 (defmethod eval-f 'self-eval [exp env] exp)
 (defmethod eval-f 'symbol [exp env] (get @env exp))
+(defmethod eval-f 'quote [exp env] (second exp))
 (defmethod eval-f 'def-f! [exp env]
   (let [v (eval-f (nth exp 2) env)] (swap! env  assoc (second exp) v) v))
 
@@ -59,6 +64,8 @@
                                      (let [[param arg & pairs] pairs
                                            f (list 'fn [param] (list* 'let pairs body))]
                                        (eval-f (list f arg) env)))))
+
+(defmethod eval-f 'do [exp env] (eval-seq (next exp) env))
 
 (defmethod eval-f 'loop [exp env] (let [body (drop 2 exp)
                                         pairs (second exp)
@@ -124,6 +131,42 @@
   (testing "eval-f"
     (let [env (make-env)
           eval-f (fn [x] (eval-f x env))]
+
+      (testing "mutual recursion"
+        (is (= 2 (eval-f '(do 1 2))))
+        (is (list?
+             (eval-f
+              '(def-f! odd-even (fn [n]
+                                     ;; (def-f! odd? nil)
+                                  (def-f! even? (fn [n] (if (= 0 n)
+                                                          true
+                                                          (odd? (- n 1)))))
+                                  (def-f! odd? (fn [n] (if (= 0 n)
+                                                         false
+                                                         (even? (- n 1)))))
+                                     ;; (prn "in odd-even" (even? 0))
+                                     ;; (prn even?)
+                                     ;; (prn "in odd-even" (odd? 0))
+                                     ;; (prn odd?)
+                                  (if (odd? n) (quote odd) (quote even)))))))
+
+        (defspec even-spec 10
+          (prop/for-all [n (->> gen/nat
+                                (gen/such-that even?))]
+                        (let [ret (eval-f (list 'odd-even n))]
+                          (= 'even ret))))
+        (defspec odd-spec 10
+          (prop/for-all [n (->> gen/nat
+                                (gen/such-that odd?))]
+                        (let [ret (eval-f (list 'odd-even n))]
+                          (= 'odd ret))))
+        ;; (even-spec)
+        ;; (odd-spec)
+
+        (is (= 'even (eval-f '(odd-even 0))))
+        (is (= 'even (eval-f '(odd-even 4))))
+        (is (= 'odd (eval-f '(odd-even 5))))
+        )
 
       (testing "prn"
         (is (= 1 (eval-f '((fn []

@@ -24,10 +24,10 @@
 (defn collatz [n max-times]
   (loop [n n i 0]
     (cond
-    (> i max-times) n
-    (= 1 n) 1
-    (even? n) (recur (/ n 2) (inc i))
-    :else (recur (+ (* 3 n) 1) (inc i)))))
+      (> i max-times) n
+      (= 1 n) 1
+      (even? n) (recur (/ n 2) (inc i))
+      :else (recur (+ (* 3 n) 1) (inc i)))))
 
 (defspec collatz-conjecture
   ;; collatz function eventually reach 1
@@ -36,12 +36,10 @@
                         (gen/such-that pos?))]
                 (= 1 (collatz n 200))))
 
-
 (deftest run-nubers-specs
   (odd-after-even)
   ;; (is-2n-prime)
-  (collatz-conjecture)
-  )
+  (collatz-conjecture))
 
 (run-nubers-specs)
 
@@ -165,4 +163,7 @@
   (if-let [x (seq [])] 5)
   (if-let [x (seq 1)] x)
   (< 1 2 4 3)
-  (apply < '(1 2 3)))
+  (apply < '(1 2 3))
+  (map - [1 2 3])
+  (map - [1 2 3] (repeat 4))
+  )
