@@ -8,6 +8,13 @@
 
 (defmethod eval-f 'fn [exp env] (list exp env))
 
+(defmethod eval-f :default [exp env] (apply-f
+                                       ;; fn
+                                      (eval-f (first exp) env)
+                                       ;; args
+                                      (map #(eval-f % env) (next exp))
+                                      env))
+
 (defn merge-envs [e0 e1] (swap! e0 merge @e1) e0)
 
 (defmethod apply-f 'compound-proc [proc-obj args env]
@@ -30,6 +37,22 @@
   ;; (testing "env-fixture"
   ;;   (is (= 1 fixture-x))
   ;;   (is (= 1 (eval-f '1))))
+
+  (testing "merge-envs infinite loop"
+    (let [env (make-env)
+          eval-f (fn [exp] (eval-f exp env))]
+      (eval-f '(def-f! j 2))
+      (eval-f 'j)
+      (is (= 2 (eval-f 'j)))
+
+      (eval-f '(def-f! i (fn[x] x)))
+      (is (= 'fn (ffirst (eval-f 'i))))
+      (is (= 1 (eval-f '(i 1))))
+      (is (= 'fn (ffirst (eval-f 'i))))
+      (eval-f 'i)
+      ;; (is (= 0 (eval-f 'i)))
+      ;; (eval-f '(def-f! 'j))
+      ))
 
   ;; TODO: extend-env with fn definition env brings infinite loop
   ;; but this example works in basic variant in sicp.ch4.eval-data-multi
