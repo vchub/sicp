@@ -131,6 +131,21 @@
             (recur)))))))
 
 (deftest test-multi-method
+
+  (testing "ex-4.21"
+    (let [env (make-env)
+          eval-f (fn [exp] (eval-f exp env))]
+
+      (eval-f '(def-f! fib (fn [n]
+                             ((fn [f] (f f n))
+                              (fn [f n]
+                                (if (< n 2)
+                                  1
+                                  (+ (f f (- n 1)) (f f (- n 2)))))))))
+      (is (= 2 (eval-f '(fib 2))))
+      (is (= 8 (eval-f '(fib 5))))
+      ))
+
   (testing "eval-f"
     (let [env (make-env)
           eval-f (fn [x] (eval-f x env))]
@@ -169,7 +184,9 @@
         (is (= 'even (eval-f '(odd-even 0))))
         (is (= 'even (eval-f '(odd-even 4))))
         (is (= 'odd (eval-f '(odd-even 5))))
-        )
+
+        (is (list? (eval-f 'odd-even)))
+        (is (= 'fn (first (eval-f 'odd-even)))))
 
       (testing "prn"
         (is (= 1 (eval-f '((fn []
