@@ -134,7 +134,19 @@
 
   (testing "ex-4.21"
     (let [env (make-env)
-          eval-f (fn [exp] (eval-f exp env))]
+          eval-f (fn [exp] (eval-f exp env))
+          even? (fn [n]
+                  ((fn [even? odd?] (even? even? odd? n))
+                   (fn [even? odd? n]
+                     (if (= 0 n)
+                       true
+                       (odd? even? odd? (dec n))))
+                   (fn [even? odd? n]
+                     (if (= 0 n)
+                       false
+                       (even? even? odd? (dec n))))
+                   )
+                  )]
 
       (eval-f '(def-f! fib (fn [n]
                              ((fn [f] (f f n))
@@ -144,6 +156,25 @@
                                   (+ (f f (- n 1)) (f f (- n 2)))))))))
       (is (= 2 (eval-f '(fib 2))))
       (is (= 8 (eval-f '(fib 5))))
+
+      (is (even? 2))
+      (is (even? 4))
+      (is (not (even? 5)))
+
+      (eval-f '(def-f! even? (fn [n]
+                  ((fn [even? odd?] (even? even? odd? n))
+                   (fn [even? odd? n]
+                     (if (= 0 n)
+                       true
+                       (odd? even? odd? (- n 1))))
+                   (fn [even? odd? n]
+                     (if (= 0 n)
+                       false
+                       (even? even? odd? (- n 1))))
+                   )
+                  )))
+      (is (eval-f '(even? 4)))
+      (is (not (eval-f '(even? 5))))
       ))
 
   (testing "eval-f"
