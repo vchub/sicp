@@ -25,7 +25,10 @@
                      :else (first exp))))
 
 (defmethod eval-f 'self-eval [exp env] exp)
-(defmethod eval-f 'symbol [exp env] (get @env exp))
+(defmethod eval-f 'symbol [exp env] (if-let [ret (get @env exp)]
+                                      ret
+                                      (throw (Exception. (str "Unbound var ", exp)))))
+
 (defmethod eval-f 'quote [exp env] (second exp))
 (defmethod eval-f 'def-f! [exp env]
   (let [v (eval-f (nth exp 2) env)] (swap! env  assoc (second exp) v) v))
@@ -229,7 +232,7 @@
 
       (is (= 1 (eval-f 1)))
       (is (= "foo" (eval-f "foo")))
-      (is (= nil (eval-f 'x)))
+      (is (thrown? Exception (eval-f 'x)))
       (eval-f '(def-f! x 1))
       ;; (prn env)
       (is (= 1 (eval-f 'x)))

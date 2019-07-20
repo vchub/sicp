@@ -53,19 +53,22 @@
                                                              (even? (- n 1)))))
                                       (fn [n] (if (odd? n) (quote odd) (quote even)))))
               (def-f! odd-even (make-odd-even))
-              (def-f! xxx (make-odd-even))i
+              (def-f! xxx (make-odd-even))
               ))
 
-          (is (= nil (eval-f 'odd?)))
-          (is (= nil (eval-f 'even?)))
+          ;; (is (= nil (eval-f 'even?)))
+          (is (thrown? Exception (eval-f 'odd?)))
+          (is (thrown? Exception (eval-f 'even?)))
           ;; TODO: stack overflow
-          ;; (is (= nil (eval-f '(do 1
-          ;;                                     (def-f! xx (make-odd-even))))))
+          ;; (is (= nil (eval-f 'make-odd-even)))
+          ;; (is (= nil (eval-f '(def-f! xxx1 (make-odd-even)))))
 
           (is (= 'even (eval-f '(odd-even 0))))
           (is (= 'even (eval-f '(odd-even 4))))
           (is (= 'odd (eval-f '(odd-even 5))))
-          (is (= 'odd (eval-f '(odd-even 7))))))
+          (is (= 'odd (eval-f '(odd-even 7))))
+          )
+        )
 
       (testing "envs"
         (let [e0 (atom {'x 1 'y 2})
@@ -77,3 +80,7 @@
           (is (= {'x 2 'y 2} @e0)))))))
 
 (test-internal-defs)
+
+(comment
+  (get {} 1 (throw (Exception. 1)))
+  )
