@@ -3,7 +3,8 @@
             [clojure.test.check :as tc]
             [clojure.test.check.generators :as gen]
             [clojure.test.check.properties :as prop]
-            [clojure.test.check.clojure-test :refer [defspec]]))
+            [clojure.test.check.clojure-test :refer [defspec]]
+            [sicp.ch4.eval-data-multi :as s-interp]))
 
 (def eval-f)
 (def analyze)
@@ -114,6 +115,19 @@
   (apply proc args))
 
 (deftest analyze-test
+
+  (testing "compare analyze and sysntax eval"
+    (let [env (make-env)]
+      ;; (time )
+      (eval-f '(def-f! factorial
+                 (fn [n] (if (< n 2) 1 (* n (factorial (- n 1)))))) env)
+      (s-interp/eval-f '(def-f! factorial-s
+                          (fn [n] (if (< n 2) 1 (* n (factorial-s (- n 1)))))) env)
+      (is (= (eval-f '(factorial 10) env) (s-interp/eval-f '(factorial-s 10) env)))
+      ;; (time (eval-f '(factorial 20) env))
+      ;; (time (s-interp/eval-f '(factorial-s 20) env))
+      ))
+
   (testing "let"
     (let [env (make-env)
           eval-f (fn [exp] (eval-f exp env))]
