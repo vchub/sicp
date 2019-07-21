@@ -28,7 +28,10 @@
 
 
 (defn analyze-seq [exp-seq env]
-  (fn [env] (reduce (fn [acc exp] (eval-f exp env)) nil exp-seq)))
+  (let [proc-seq (map #(analyze % env) exp-seq)]
+    (fn [env] (reduce (fn [acc f] (f env)) nil proc-seq)))
+  ;; (fn [env] (reduce (fn [acc exp] (eval-f exp env)) nil exp-seq))
+  )
 
 (defmethod analyze 'self-eval [exp env] (fn [env] exp))
 (defmethod analyze 'symbol [exp env] (fn [env] (if-let [ret (get @env exp)]
@@ -36,8 +39,8 @@
                                                  (throw (Exception. (str "Udefined var " exp))))))
 
 (defmethod analyze 'def-f! [exp env] (let [var-name (second exp)
-                                           var-val (eval-f (nth exp 2) env)]
-                                       (fn [env] (swap! env assoc var-name var-val))))
+                                           var-proc (analyze (nth exp 2) env)]
+                                       (fn [env] (swap! env assoc var-name (var-proc env)))))
 
 (defmethod analyze 'do [exp env] (analyze-seq (next exp) env))
 
@@ -51,16 +54,45 @@
   (let [p-env (into @env (map vector params args))]
     (atom p-env)))
 
+(defn make-prodedure [params body-proc env]
+  (fn [& args]
+     ;; (prn params args)
+    (let [env (extend-env env params args)]
+      (body-proc env))))
+
 (defmethod analyze 'fn [exp env] (fn [env]
                                    (let [params (second exp)
                                          body (drop 2 exp)
                                          body-proc (analyze-seq body env)]
                                        ;; (prn params body)
-                                     (fn [& args]
-                                       ;; (prn params body args)
-                                       ;; (prn body-proc)
-                                       (let [env (extend-env env params args)]
-                                         (body-proc env))))))
+                                     (make-prodedure params body-proc env))))
+
+(defmethod analyze 'let [exp env]
+  (letfn [(iter [pairs]
+            (if (empty? pairs)
+              (list (list* 'fn [] (drop 2 exp)))
+              (let [[p a & pairs] pairs]
+                (list (list 'fn [p] (iter pairs)) a))))]
+    (let [ret (iter (second exp))]
+      ;; (prn ret)
+      (analyze ret env)))
+
+  ;; (let [pairs (second exp)
+  ;;       body (drop 2 exp)]
+  ;;   (if (empty? pairs)
+  ;;       ;; (eval-f (list* 'fn [] body) env)
+  ;;     (let [exp (list (list* 'fn [] body))]
+  ;;       (prn exp)
+  ;;       ;; (prn env)
+  ;;       ;; (prn (get @env 'x))
+  ;;       (eval-f exp env))
+  ;;     (let [[p a & pairs] pairs
+  ;;           exp (list (list 'fn [p] (list* 'let pairs body)) a)]
+  ;;       (prn exp)
+  ;;       (eval-f exp env))
+  ;;     )
+  ;;   )
+  )
 
 (defmethod analyze :default [exp env] (fn [env]
                                         (apply-f
@@ -82,6 +114,16 @@
   (apply proc args))
 
 (deftest analyze-test
+  (testing "let"
+    (let [env (make-env)
+          eval-f (fn [exp] (eval-f exp env))]
+      (is (= 4 (eval-f '((fn [x] ((fn [y] (+ x y)) x)) 2))))
+      (is (= 1 (eval-f '((fn [x] ((fn [] x))) 1))))
+      (is (= 1 (eval-f '(let [x 1] x))))
+      (is (= 8 (eval-f '(let [x 2 y (+ x 2)] (* x y)))))
+      ;; (is (= 8 (eval-f '(let [fact (fn[n] (if (< n 2) 1 (* n (fact (- n 1)))))] (fact 3)))))
+      ))
+
   (testing "eval-f primitives"
     (let [env (make-env)
           eval-f (fn [exp] (eval-f exp env))]
@@ -110,3 +152,6 @@
       (is (= 3 (apply plus-one [2]))))))
 
 (analyze-test)
+
+(comment
+  ((fn [x] ((fn [] x))) 1))
