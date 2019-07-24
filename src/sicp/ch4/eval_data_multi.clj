@@ -27,7 +27,7 @@
 (defmethod eval-f 'self-eval [exp env] exp)
 (defmethod eval-f 'symbol [exp env] (if-let [ret (get @env exp)]
                                       ret
-                                      (throw (Exception. (str "Unbound var ", exp)))))
+                                      (throw (Exception. (str "Undefined var ", exp)))))
 
 (defmethod eval-f 'quote [exp env] (second exp))
 (defmethod eval-f 'def-f! [exp env]
@@ -104,16 +104,6 @@
     ret))
 
 (defmethod apply-f 'primitive-proc [proc args env] (apply proc args))
-
-;; (defn apply-f
-;;   "proc is either '(fn[x y] ....) or primitive-proc"
-;;   [proc args env]
-;;   (if (compound-proc? proc)
-;;     (let [body (proc-body proc)
-;;           env (extend-env env (proc-params proc) args)
-;;           ret (reduce (fn [acc exp] (eval-f exp env)) nil body)]
-;;       ret)
-;;     (apply proc args)))
 
 (defn repl- []
   (let [env (make-env)
@@ -321,23 +311,23 @@
 
 (test-multi-method)
 
-(defprotocol Pair
-  (h [_] "head")
-  (t [_] "tail"))
+(defprotocol Pair-like
+  (hh [_] "head")
+  (tt [_] "tail"))
 
 (extend clojure.lang.ISeq
-  Pair
-  {:h (fn [s] (first s))
-   :t (fn [s] (next s))})
+  Pair-like
+  {:hh (fn [s] (first s))
+   :tt (fn [s] (next s))})
 
 (extend clojure.lang.Symbol
-  Pair
-  {:h (fn [s] 'symbol)
-   :t (fn [s] nil)})
+  Pair-like
+  {:hh (fn [s] 'symbol)
+   :tt (fn [s] nil)})
 
 (extend java.lang.String
-  Pair
-  {:h (fn [s] 'string)})
+  Pair-like
+  {:hh (fn [s] 'string)})
 
 (deftest test-data-multi
   (testing "protocol"
@@ -348,11 +338,11 @@
     (is (= clojure.lang.Symbol (class 'x)))
     (is (= java.lang.String (class "some")))
     ;; (is (= clojure.lang.IFn (class (fn[x]))))
-    (is (= 1 (h '(1 2 3))))
-    (is (= '(2 3) (t '(1 2 3))))
-    (is (= 'string (h "foo")))
-    ;; (is (= 'symbol (h 'x)))
-    ;; (is (= nil (t 'x)))
+    (is (= 1 (hh '(1 2 3))))
+    (is (= '(2 3) (tt '(1 2 3))))
+    (is (= 'string (hh "foo")))
+    ;; (is (= 'symbol (hh 'x)))
+    ;; (is (= nil (tt 'x)))
     ))
 
 (test-data-multi)
