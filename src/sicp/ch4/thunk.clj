@@ -59,7 +59,7 @@
 (defn tagged-list [obj tag] (and (seq? obj) (= tag (first obj))))
 (defn delay-it [exp env] (list 'thunk exp env))
 (defn thunk? [obj] (tagged-list obj 'thunk))
-(defn reaized-thunk? [obj] (tagged-list obj 'thunk))
+(defn reaized-thunk? [obj] (tagged-list obj 'reaized-thunk))
 
 (defn actual-val [exp env] (force-it (eval-f exp env)))
 
@@ -67,20 +67,9 @@
                        (actual-val (second obj) (nth obj 2))
                        obj))
 
-;; (defn delayed? [exp] (and (seq? exp)
-;;                           (= 'delayed (first exp))))
-;;
-;; (defn force-f [exp]  (if (delayed? exp)
-;;                        (if (delayed? (second exp))
-;;                          (recur (second exp))
-;;                          ((second exp)))
-;;                        exp))
-;;
-;; (defn delay-> [exp env]  (list 'delayed (memoize-f (fn [] (eval-f exp env)))))
-;;
-(defmethod eval-f 'thunk [exp env] exp)
-(defmethod eval-f 'delay [exp env] (delay-it exp env))
-(defmethod eval-f 'force [exp env] (force-it exp env))
+;; (defmethod eval-f 'thunk [exp env] exp)
+(defmethod eval-f 'delay [exp env] (delay-it (second exp) env))
+(defmethod eval-f 'actual-val [exp env] (actual-val (second exp) env))
 
 (defmethod eval-f :default [exp env] (apply-f
                                        ;; fn
@@ -109,7 +98,9 @@
         proc-env (nth proc 2)
         params (second (second proc))
         ;; TODO: change to delay
-        args (map #(eval-f % env) args)
+        ;; args (map #(eval-f % env) args)
+        args (map #(delay-it % env) args)
+
         env (extend-env proc-env params args)
         ret (eval-seq body env)]
     ret))
@@ -117,6 +108,39 @@
 (defmethod apply-f 'primitive-proc [proc args env]
   (let [args (map #(actual-val % env) args)]
     (apply proc args)))
+
+(deftest delay-args
+  (testing "proc args lazy eval"
+    (let [env (make-env)
+          eval-f (fn [exp] (eval-f exp env))]
+      (is (thunk? (eval-f '(delay (+ 1 2)))))
+      (is (not (thunk? (eval-f '(+ 1 1)))))
+
+      (is (= 2 (eval-f '(actual-val (+ 1 1)))))
+      (is (= 2 (eval-f '(actual-val (delay (+ 1 1))))))
+      (is (= 2 (eval-f '(actual-val (delay (delay (+ 1 1)))))))
+
+      (is (= 3 (eval-f '(actual-val (+ (delay 1) (delay (delay (+ 1 1))))))))
+
+      (is (= 9 (eval-f '(do
+                          (def x-x (delay 4))
+                          (def x-d (delay (+ x-x 5)))
+                          (actual-val x-d)))))
+
+      (eval-f '(def identity (fn [x]  x)))
+      (is (= 'compound-proc (first (eval-f 'identity))))
+      (is (= 1 (eval-f '(actual-val (identity 1)))))
+
+      (eval-f '(def sum (fn [x y] (+ x y))))
+      (is (= 2 (eval-f '(sum 1 1))))
+
+      (eval-f '(def double-sum (fn [x y] (sum (sum x y) (sum x y)))))
+      (is (= 6 (eval-f '(double-sum 2 1))))
+
+      (eval-f '(def double-f (fn [f] (fn [x] (f (f x))))))
+      (eval-f '(def times-4 (double-f (fn [y] (* 2 y)))))
+      (is (= 8 (eval-f '(times-4 2))))
+      (is (= 12 (eval-f '(times-4 3)))))))
 
 (deftest test-internal-fn
   (let [env (make-env)
@@ -137,6 +161,7 @@
 
 (deftest test-thunk
 
+  (delay-args)
   (test-internal-fn)
 
   (testing "compound-proc and closure"
@@ -150,15 +175,14 @@
       (eval-f '(def factorial (fn [n] (if (< n 2) 1 (* n (factorial (dec n)))))))
       (is (= 6 (eval-f '(factorial 3))))
       (is (= 2 (eval-f '((fn [x] (sum 1 x)) 1))))
-      ;;
-      ;; (eval-f '(def f (fn [z] (sum 1 0))))
+
       (eval-f '(do (def f (fn [z] (sum 1 z)))))
       (is (= 4 (eval-f '(f 3))))
       (is (= 4 (eval-f '(def fi (f 3)))))
       (is (= 4 (eval-f 'fi)))
 
       (eval-f '(def f (fn [z] (fn [] z))))
-      (is (= 2 (eval-f '((f 2)))))
+      (is (= 2 (eval-f '(actual-val ((f 2))))))
 
       (eval-f '(def adder (fn [z]  (fn [y] (+ y z)))))
       (eval-f '(def add-2 (adder 2)))
@@ -179,60 +203,6 @@
       (is (= 1 (eval-f '(counter))))
       (is (= 2 (eval-f '(counter))))
       (is (= 3 (eval-f '(counter))))))
-
-  (testing "proc args lazy eval"
-    (let [env (make-env)
-          eval-f (fn [exp] (eval-f exp env))]
-      ;; (is (= 2 (eval-f '(+ 1 1))))
-      ;; (is (= 2 (eval-f '(force 2))))
-      ;; (is (= 2 (eval-f '(force (+ 1 1)))))
-      ;; (is (= 'delayed (first (eval-f '(delay (+ 1 1))))))
-      ;; (is (= 2 ((second (eval-f '(delay (+ 1 1)))))))
-      ;; (is (= 2 (eval-f '(force (delay (+ 1 1))))))
-      ;; (is (= 9 (eval-f '(do
-      ;;                     (def x-x 4)
-      ;;                     (def x-d (delay (+ x-x 5)))
-      ;;                     (force x-d)))))
-      ;;
-      ;; (is (= 2 (eval-f '(+ 1 (delay 1)))))
-      ;; (is (= 2 (eval-f '(do
-      ;;                     (def x (delay 1))
-      ;;                     (+ x 1)))))
-      ;;
-      ;; (is (= 2 (eval-f '(force (delay (delay (+ 1 1)))))))
-      ;;
-      ;; (eval-f '(def ident (fn [x]  x)))
-      ;; (is (delayed? (eval-f '(ident 1))))
-      ;; ;; (is (= 10 (eval-f '(force (ident 10)))))
-      ;; (is (= 3 (eval-f '(+ (ident 2) (ident 1)))))
-      ;; (is (= 3 (eval-f '(+ (ident 2) (ident 1)))))
-      ;; ;; (eval-f '(def f-ident (fn [x] (prn "in f-ident" x) x)))
-      ;; ;; (is (delayed? (eval-f '(f-ident (ident 3)))))
-      ;; ;;
-      ;; (eval-f '(def sum (fn [x y] (+ x y))))
-      ;; (is (delayed? (eval-f '(sum (ident 20) (ident 11)))))
-      ;; (is (= 31 (eval-f '(+ 0 (sum (ident 20) (ident 11))))))
-      ;;
-      ;; (is (= 31 (eval-f '(do (+ 0 (sum (ident 20) (ident 11)))))))
-
-      ;; (is (= 2 (eval-f '(force (force (fn[]
-      ;;                     (def inc- (fn [x] (+ 1 x)))
-      ;;                     (def i-f (fn [x]  x))
-      ;;                     (+ 0 (i-f (inc- 1)))))
-      ;;                     ))))
-
-      ;; TODO: fix-it
-      ;; (is (= 2 (eval-f '(+ 1 (delay (delay 1))))))
-
-      ;; (is (= 2 (eval-f '(do
-      ;;                     (def inc- (fn [x] (+ 1 x)))
-      ;;                     (inc- 1)
-      ;;                     (+ 0 (inc- 1))
-      ;;                     (def f (fn [x] (inc- x)))
-      ;;                     (+ 0 (force (force (f 1))))
-      ;;                     (def i-f (fn [x] (prn x) x))
-      ;;                     (+ 0 (force (i-f (inc- 1))))))))
-      ))
 
   (testing "memoize-f"
     (let [x 1 y 2
