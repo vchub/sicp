@@ -56,16 +56,23 @@
       (set-env-var! m k (eval-f (nth exp 2) env))
       (throw (Exception. (str "Can't set undefined var " k))))))
 
+(defrecord Thunk [exp env])
+(defrecord Realized-Thunk [v])
+
 (defn tagged-list [obj tag] (and (seq? obj) (= tag (first obj))))
-(defn delay-it [exp env] (list 'thunk exp env))
-(defn thunk? [obj] (tagged-list obj 'thunk))
-(defn reaized-thunk? [obj] (tagged-list obj 'reaized-thunk))
+(defn thunk? [obj] (and (= clojure.lang.Atom (type obj)) (= Thunk (type @obj))))
+(defn reaized-thunk? [obj] (and (= clojure.lang.Atom (type obj)) (= Realized-Thunk (type @obj))))
+
+(defn delay-it [exp env] (atom (Thunk. exp env)))
 
 (defn actual-val [exp env] (force-it (eval-f exp env)))
 
-(defn force-it [obj] (if (thunk? obj)
-                       (actual-val (second obj) (nth obj 2))
-                       obj))
+(defn force-it [obj] (cond
+                       (reaized-thunk? obj) (:v @obj)
+                       (thunk? obj) (let [v (actual-val (:exp @obj) (:env @obj))]
+                                      (reset! obj (Realized-Thunk. v))
+                                      v)
+                       :else obj))
 
 ;; (defmethod eval-f 'thunk [exp env] exp)
 (defmethod eval-f 'delay [exp env] (delay-it (second exp) env))
@@ -108,6 +115,32 @@
 (defmethod apply-f 'primitive-proc [proc args env]
   (let [args (map #(actual-val % env) args)]
     (apply proc args)))
+
+(deftest test-Thunk
+  (let [env (make-env)
+        eval-f (fn [exp] (eval-f exp env))
+        x (Thunk. '(+ 1 2) env)]
+    (is (= Thunk (type x)))
+    (is (thunk? (delay-it 1 env)))
+    (is (= 1 (actual-val 1 env)))
+    (is (= 3 (actual-val '(+ 1 2) env)))
+    (is (= 3 (actual-val '(delay (+ 1 2)) env)))
+    (eval-f '(def x (delay (+ 1 2))))
+    (is (= 3 (eval-f '(actual-val x))))
+    (is (= 3 (eval-f '(actual-val x))))
+
+
+    ;; (eval-f '(def sum (fn[x y] (prn "sum" x y) (+ x y))))
+
+
+    (eval-f '(def sum (fn [x y] (* y x) (+ x y))))
+    (eval-f '(def x (sum 3 4)))
+    (is (= 7 (eval-f 'x)))
+    (is (= 7 (eval-f 'x)))
+    (is (= 7 (eval-f 'x)))
+    (eval-f '(def z (sum 4 4)))
+    (is (= 8 (eval-f 'z)))
+    (is (= 8 (eval-f 'z)))))
 
 (deftest delay-args
   (testing "proc args lazy eval"
@@ -160,9 +193,6 @@
     (is (= 8 (eval-f '(add-5 3))))))
 
 (deftest test-thunk
-
-  (delay-args)
-  (test-internal-fn)
 
   (testing "compound-proc and closure"
     (let [env (make-env)
@@ -218,8 +248,6 @@
       (eval-f '(set! y 4))
       (is (= 4 (eval-f 'y))))))
 
-(test-thunk)
-
 (deftest java-map
   (testing "eval-f"
     (let [env (make-env)
@@ -261,7 +289,6 @@
       (is (= :a (look-up env3 'a)))
       (is (= < (look-up env3 '<))))))
 
-(java-map)
 
 ;; (defprotocol P
 ;;   (h[_])
@@ -294,3 +321,18 @@
 ;;       (is (= 4 (t p)))
 ;;       )
 ;;     )
+
+
+(comment
+  (let [x ^:thunk (atom 1)]
+    (meta x)))
+
+(deftest test-thunk-all
+  (test-Thunk)
+  ;; (delay-args)
+;;   (test-internal-fn)
+;; (test-thunk)
+;; (java-map)
+  )
+
+(test-thunk-all)
