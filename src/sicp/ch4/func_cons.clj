@@ -3,6 +3,7 @@
 
 (def force-it)
 (def apply-f)
+(def actual-val)
 
 ;; ====================
 ;; Utils
@@ -43,10 +44,13 @@
                      (symbol? exp) 'symbol
                      :else (first exp))))
 
+(defn eval-seq [exp-seq env]
+  (reduce (fn [acc exp] (eval-f exp env)) nil exp-seq))
+
 (defmethod eval-f 'self-eval [exp env] exp)
 (defmethod eval-f 'quote [exp env] (second exp))
 
-(defmethod eval-f 'if [exp env] (if (eval-f (second exp) env)
+(defmethod eval-f 'if [exp env] (if (actual-val (second exp) env)
                                   (eval-f (nth exp 2) env)
                                   (eval-f (nth exp 3) env)))
 
@@ -68,9 +72,6 @@
                                            [params args] (split-for-let (second exp))
                                            f (list* 'fn params body)]
                                        (eval-f (list* f args) env)))
-
-(defn eval-seq [exp-seq env]
-  (reduce (fn [acc exp] (eval-f exp env)) nil exp-seq))
 
 (defmethod eval-f 'let [exp env] (let [body (drop 2 exp)
                                        pairs (second exp)]
@@ -114,6 +115,15 @@
       (set-env-var! m k (eval-f (nth exp 2) env))
       (throw (Exception. (str "Can't set undefined var " k))))))
 
+(defmethod eval-f 'cond [exp env]
+  (loop [pairs (next exp)]
+    (let [[p e & pairs] pairs]
+      (cond
+        (and (empty? pairs) (= :else p)) (eval-f e env)
+        (empty? pairs) (throw (Exception. (str "cond has to end with :else")))
+        (actual-val p env) (eval-f e env)
+        :else (recur pairs)))))
+
 ;; ====================
 ;; Thunk
 (defrecord Thunk [exp env])
@@ -135,7 +145,27 @@
 
 (defmethod eval-f 'delay [exp env] (delay-it (second exp) env))
 (defmethod eval-f 'actual-val [exp env] (actual-val (second exp) env))
+
+;;  (txt->list 1 2 3) -> (cons 1 (cons 2 (cons 3 nil)))
+(defmethod eval-f 'txt->list
+  [exp env]
+  (letfn [(iter [xs] (when (seq? xs) (list 'cons (first xs) (iter (next xs)))))]
+    (eval-f (iter (next exp)) env)))
+
+(defmethod eval-f 'compound-proc [exp env] exp)
+;;  (cons 1 (cons 2 (cons 3 nil))) -> (list 1 2 3)
+(defn list->txt
+  [exp env]
+  (loop [exp (eval-f exp env) acc []]
+    ;; (prn acc)
+    (if (nil? (actual-val exp env))
+      acc
+      ;; (recur (eval-f (list 'cdr exp) env) (actual-val (list 'car exp) env))
+      ;; (recur (actual-val (list 'cdr exp) env) (conj acc (actual-val (list 'car exp) env)))
+      (recur (list 'cdr exp) (conj acc (actual-val (list 'car exp) env))))))
+
 ;; ====================
+
 
 (defmethod eval-f :default [exp env] (apply-f
                                        ;; fn
@@ -167,14 +197,34 @@
 
 ;; ====================
 ;; env
-(def primitive-proc-symbols #{'+ '- '* '/ '< '> '= 'prn})
+(def primitive-proc-symbols #{'+ '- '* '/ '< '> '= 'prn 'dec})
 
 (defn make-env []
   (let [env (java.util.HashMap. (into {} (map #(vector % (eval %)) primitive-proc-symbols)))]
     (eval-f '(do
                (def cons (fn [x y] (fn [f] (f x y))))
                (def car (fn [z] (z (fn [x y] x))))
-               (def cdr (fn [z] (z (fn [x y] y))))) env)
+               (def cdr (fn [z] (z (fn [x y] y))))
+               (def empty? (fn [xs] (= nil xs)))
+               (def list-ref (fn [xs n] (cond
+                                          (empty? xs) nil
+                                          (= 0 n) (car xs)
+                                          :else (list-ref (cdr xs) (dec n)))))
+               (def map (fn [proc xs] (if (empty? xs)
+                                        nil
+                                        (cons (proc (car xs)) (map proc (cdr xs))))))
+               (def scale-list (fn [xs factor] (map (fn [x] (* factor x)) xs)))
+               (def add-lists (fn [xs ys] (cond
+                                            (empty? xs) ys
+                                            (empty? ys) xs
+                                            :else (cons (+ (car xs) (car ys))
+                                                        (add-lists (cdr xs) (cdr ys))))))
+               (def take (fn [n xs] (cond
+                                      (empty? xs) nil
+                                      (< n 1) nil
+                                      :else (cons (car xs) (take (dec n) (cdr xs))))))
+;;
+               )env)
     env))
 
 ;; ====================
@@ -184,6 +234,63 @@
         eval-f (fn [exp] (eval-f exp env))
         actual-val (fn [obj] (actual-val obj env))]
 
+    (testing "cond"
+      (is (= 1 (eval-f '(cond
+                          false 0
+                          (< 0 1) 1
+                          :else -1))))
+
+      (is (= -1 (eval-f '(cond
+                           false 0
+                           (> 0 1) 1
+                           :else -1)))))
+
+    (testing "add-lists and naturals"
+      (eval-f '(def xs (txt->list 1 2 3)))
+      (eval-f '(def ys (txt->list 1 2)))
+      (is (= '(2 4 3) (list->txt '(add-lists xs ys) env)))
+      (is (= '(2 4) (list->txt '(take 2 (add-lists xs ys)) env)))
+      (eval-f '(def ones (cons 1 ones)))
+      (is (= (repeat 3 1) (list->txt '(take 3 ones) env)))
+      (eval-f '(def naturals (cons 1 (add-lists ones naturals))))
+      (is (= (range 1 11) (list->txt '(take 10 naturals) env))))
+
+    (testing "txt->list"
+      (eval-f '(def xs (txt->list 1 2 3)))
+      (is (actual-val 'xs))
+      (is (= 1 (actual-val '(car xs))))
+      (is (= 2 (actual-val '(car (cdr xs)))))
+      (is (= 'compound-proc (first (actual-val '(cdr xs)))))
+      (is (= '(fn [f] (f x y)) (second (actual-val '(cdr xs)))))
+      (is (= java.util.HashMap (type (nth (actual-val '(cdr xs)) 2))))
+
+      (is (= '(1 2 3) (list->txt 'xs env))))
+
+    (testing "txt->list"
+      (eval-f '(def xs (txt->list 1 2 3)))
+      (is (= 1 (actual-val '(list-ref xs 0))))
+      (is (= 2 (actual-val '(list-ref xs 1))))
+      (is (= 3 (actual-val '(list-ref xs 2))))
+      (is (= nil (actual-val '(list-ref xs 3)))))
+
+    (testing "map"
+      (eval-f '(def xs (txt->list 1 2 3)))
+      (eval-f '(def ys (map (fn [x] (* 2 x)) xs)))
+      (is (= 2 (actual-val '(list-ref ys 0))))
+      (is (= 4 (actual-val '(list-ref ys 1))))
+      (is (= 6 (actual-val '(list-ref ys 2))))
+      (is (= nil (actual-val '(list-ref ys 3))))
+
+      (eval-f '(def z (scale-list xs 3)))
+      (is (= '(3 6 9) (list->txt 'z env)))
+      (is (= '(4 8 12) (list->txt '(scale-list xs 4) env))))
+
+    (testing "list-ref"
+      (eval-f '(def xs (cons 1 (cons 2 (cons 3 nil)))))
+      (is (= 3 (actual-val '(list-ref xs 2))))
+      (is (= nil (actual-val '(list-ref xs 4))))
+      (is (= nil (eval-f '(list-ref xs 4)))))
+
     (testing "cons"
       (eval-f '(def x (cons 1 2)))
       ;; (is (= 1 (eval-f '(car x))))
@@ -192,9 +299,7 @@
 
       (eval-f '(def x (cons 1 (/ 1 0))))
       (is (= 1 (actual-val '(car x))))
-      (is (thrown? ArithmeticException (actual-val '(cdr x))))
-      )
-    ))
+      (is (thrown? ArithmeticException (actual-val '(cdr x)))))))
 
 (deftest test-exercises
 
@@ -206,15 +311,14 @@
       (is (= '(2) (actual-val '(cdr (p1 1)) env)))
       (is (not (= 1 (second (actual-val '(car (p1 1)) env)))))
       (is (tagged-list (actual-val '(car (p1 1)) env) 'compound-proc))
-
+      ;; (is (tagged-list (eval-f (actual-val '(car (p1 1)) env)) 'compound-proc))
       ;;Notice: x is cons - fn
-      (is (= '(fn[f] (f x y)) (second (actual-val '(car (p1 1)) env)) ))
+      (is (= '(fn [f] (f x y)) (second (actual-val '(car (p1 1)) env))))
 
       (eval-f '(def p2 (fn [x]
                          (def p (fn [e] e x))
                          (p (set! x (cons x '(2)))))))
-      (is (= 1 (actual-val '(p2 1) env)))
-      ))
+      (is (= 1 (actual-val '(p2 1) env)))))
 
   (testing "ex 4.27"
     (let [env (make-env)
@@ -330,13 +434,11 @@
       (eval-f '(set! y 4))
       (is (= 4 (eval-f 'y))))))
 
-
 (deftest test-func-cons
   (test-lazy-cons)
   (test-exercises)
   (test-internal-fn)
   (test-Thunk)
-  (test-thunk)
-  )
+  (test-thunk))
 
 (test-func-cons)
