@@ -14,6 +14,26 @@
 (defn make-env []
   (java.util.HashMap. (into {} (map #(vector % (eval %)) primitive-proc-symbols))))
 
+;; ====================
+;; lazy cons - start
+(defrecord P [h t])
+(defn P-> [h t] (atom (P. h t)))
+
+(defmethod eval-f 'cons [exp env] (P-> (eval-f (second exp) env) (nth exp 2)))
+(defmethod eval-f 'car [exp env] (:h @(eval-f (second exp) env)))
+
+(defmethod eval-f 'car! [exp env]
+  (let [a (eval-f (second exp) env)]
+    (swap! a assoc :h (eval-f (nth exp 2) env))))
+
+(defmethod eval-f 'cdr [exp env] (eval-f (:t @(eval-f (second exp) env)) env))
+(defmethod eval-f 'cdr! [exp env]
+  (let [a (eval-f (second exp) env)]
+    (swap! a assoc :t (nth exp 2))))
+
+;; lazy cons - end
+;; ====================
+
 (defn look-up-map-val [env k]
   "map, key -> [map, value]"
   (if-let [v (get env k)]
@@ -115,6 +135,45 @@
 (defmethod apply-f 'primitive-proc [proc args env]
   (let [args (map #(actual-val % env) args)]
     (apply proc args)))
+
+;; (defn env-fixture[f]
+;;   (let [env (make-env)
+;;           eval-f (fn [exp] (eval-f exp env))]
+;;     (prn "in env-fixture")
+;;       (f)
+;;       )
+;;   )
+;;
+;; (use-fixtures :each env-fixture)
+
+(deftest test-exercises
+
+  (testing "ex 4.30"
+    (let [env (make-env)
+          eval-f (fn [exp] (eval-f exp env))]
+      (eval-f '(def p1 (fn [x] (set! x (cons x '(2))) x)))
+      (eval-f '(def y 1))
+      (is (= 1 (actual-val '(car (p1 y)) env)))
+      (is (= '(2) (actual-val '(cdr (p1 1)) env)))
+      (eval-f '(def p2 (fn [x]
+                         (def p (fn [e] e x))
+                         (p (set! x (cons x '(2)))))))
+      (is (= 1 (actual-val '(p2 1) env)))))
+
+  (testing "ex 4.27"
+    (let [env (make-env)
+          eval-f (fn [exp] (eval-f exp env))]
+      (eval-f '(do
+                 (def count 0)
+                 (def id (fn [x] (set-global! count (+ count 1)) x))
+                 (def w (id (id 10)))))
+      (is (= 1 (actual-val 'count env)))
+      (is (= 10 (actual-val 'w env)))
+      (is (= 2 (actual-val 'count env)))
+      (eval-f '(def square (fn [x] (* x x))))
+      (is (= 2 (actual-val 'count env)))
+      (is (= 100 (eval-f '(square (id 10)))))
+      (is (= 3 (actual-val 'count env))))))
 
 (deftest test-Thunk
   (let [env (make-env)
@@ -325,14 +384,16 @@
 
 (comment
   (let [x ^:thunk (atom 1)]
+    (meta x))
+  (let [x ^:thunk []]
     (meta x)))
 
 (deftest test-thunk-all
+  (test-exercises)
   (test-Thunk)
-  ;; (delay-args)
-;;   (test-internal-fn)
-;; (test-thunk)
-;; (java-map)
-  )
+  (delay-args)
+  (test-internal-fn)
+  (test-thunk)
+  (java-map))
 
 (test-thunk-all)
