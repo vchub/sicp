@@ -245,6 +245,25 @@
                            (> 0 1) 1
                            :else -1)))))
 
+    (testing "integral"
+      (eval-f '(do
+                 (def dx 1e-2)
+                 (def xs (cons 0 (map (fn[x] (+ x dx)) xs)))
+                 (def identity (fn[x] x))
+                 (def integral (fn [integrant init dt]
+                                 (def integ (cons init
+                                                  (add-lists (scale-list integrant dt)
+                                                             integ)))
+                                 integ))
+                 (def solve (fn [f y0 dt]
+                              (def y (integral dy y0 dt))
+                              (def dy (map f y))))
+                 (def e (list-ref (solve identity 1 2e-2) 50))
+                 ))
+      (is (> 2.7 (actual-val 'e)))
+      (is (< 2.6 (actual-val 'e)))
+
+      )
     (testing "add-lists and naturals"
       (eval-f '(def xs (txt->list 1 2 3)))
       (eval-f '(def ys (txt->list 1 2)))
@@ -253,9 +272,12 @@
       (eval-f '(def ones (cons 1 ones)))
       (is (= (repeat 3 1) (list->txt '(take 3 ones) env)))
       (eval-f '(def naturals (cons 1 (add-lists ones naturals))))
-      (is (= (range 1 11) (list->txt '(take 10 naturals) env))))
+      (is (= (range 1 11) (list->txt '(take 10 naturals) env)))
+      (eval-f '(def fibs (cons 1 (cons 1 (add-lists fibs (cdr fibs))))))
+      (is (= '(1 1 2 3 5 8 13 21 34 55) (list->txt '(take 10 fibs) env)))
+      )
 
-    (testing "txt->list"
+    (testing "list->txt"
       (eval-f '(def xs (txt->list 1 2 3)))
       (is (actual-val 'xs))
       (is (= 1 (actual-val '(car xs))))
