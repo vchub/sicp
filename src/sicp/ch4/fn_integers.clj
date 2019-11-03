@@ -41,8 +41,8 @@
               (> i s) 0
               :else
               (reduce + (map #(f (inc i) (- s %)) (range i (inc s))))))]
-
     (f 1 s)))
+
 
 (defn tuples-seq "num, num -> [[num]]"
   [n, s]
@@ -65,7 +65,6 @@
 
 (deftest test-solution
   (is (= (choose (+ 79 7 -1) 6) (tuples-num-mem 6 100))))
-
 ;; (test-solution)
 
 (deftest test-ints
