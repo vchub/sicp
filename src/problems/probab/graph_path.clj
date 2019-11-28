@@ -16,7 +16,6 @@
     (count (go [] n n))))
 
 (testing
-;;  (is (= [[0],[1]] (win-seq 1)))
  (is (= 2 (win-seq 1)))
   (is (= 6 (win-seq 2)))
   (is (= 20 (win-seq 3)))
