@@ -15,6 +15,11 @@
           (not= 1 (- (first xs) (first acc)))) [acc xs]
       :else (recur (conj acc (first xs)) (rest xs)))))
 
+(inc_sub [2 3 4])
+(max-len [3 4 5 1 8 ])
+
+
+
 (defn max-len'
   "[int]->int"
   [xs]
@@ -99,8 +104,6 @@
 (test-factors)
 
 (comment
-  (sort-by - (range 10))
-  (reverse (sort-by < (range 10)))
 
   (let [[x y & z] [1 2 3 4]]
     [x y z])
@@ -119,35 +122,3 @@
   (def x 2)
   (map + [1 2] [1 2])
   (range 3 (inc (Math/sqrt 20)) 2))
-
-
-;; The h-index is a metric used to measure the impact and productivity of a scientist or researcher.
-;;
-;; A scientist has index h if h of their N papers have at least h citations each, and the other N - h papers have no more than h citations each. If there are multiple possible values for h, the maximum value is used.
-;;
-;; Given an array of natural numbers, with each value representing the number of citations of a researcher's paper, return the h-index of that researcher.
-;;
-;; For example, if the array was:
-;;
-;; [4, 0, 0, 2, 3]
-;; This means the researcher has 5 papers with 4, 1, 0, 2, and 3 citations respectively. The h-index for this researcher is 2, since they have 2 papers with at least 2 citations and the remaining 3 papers have no more than 2 citations.
-
-(defn h-index "[int]->int"
-  [xs]
-  (let [sum (fn[xs](reduce + xs))
-        xs (sort-by - xs)]
-    (sum (for [[i,x] (map-indexed #(vector %1 %2) xs) :when (<= (inc i) x)]  1))
-    ))
-
-(deftest test-h-index
-  (is (= 0 (h-index [0])))
-  (is (= 1 (h-index [0 1])))
-  (is (= 1 (h-index [0 1 1])))
-(is (= 2 (h-index [4, 0, 0, 2, 3])))
-  )
-
-(test-h-index)
-
-(comment
-  (for [[i,x] (map-indexed #(vector %1 %2) (range 10 0 -1)) :when (<= i x)]  [i,x])
-  )
