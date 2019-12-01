@@ -132,22 +132,21 @@
 ;; [4, 0, 0, 2, 3]
 ;; This means the researcher has 5 papers with 4, 1, 0, 2, and 3 citations respectively. The h-index for this researcher is 2, since they have 2 papers with at least 2 citations and the remaining 3 papers have no more than 2 citations.
 
+
 (defn h-index "[int]->int"
   [xs]
-  (let [sum (fn[xs](reduce + xs))
+  (let [sum (fn [xs] (reduce + xs))
         xs (sort-by - xs)]
-    (sum (for [[i,x] (map-indexed #(vector %1 %2) xs) :when (<= (inc i) x)]  1))
-    ))
+    (sum (for [[i,x] (map-indexed #(vector %1 %2) xs) :when (<= (inc i) x)]  1))))
 
 (deftest test-h-index
+  (is (= 0 (h-index [])))
   (is (= 0 (h-index [0])))
   (is (= 1 (h-index [0 1])))
   (is (= 1 (h-index [0 1 1])))
-(is (= 2 (h-index [4, 0, 0, 2, 3])))
-  )
+  (is (= 2 (h-index [4, 0, 0, 2, 3]))))
 
 (test-h-index)
 
 (comment
-  (for [[i,x] (map-indexed #(vector %1 %2) (range 10 0 -1)) :when (<= i x)]  [i,x])
-  )
+  (for [[i,x] (map-indexed #(vector %1 %2) (range 10 0 -1)) :when (<= i x)]  [i,x]))
