@@ -1,5 +1,6 @@
 (ns problems.daily.parentheses
-  (:require [clojure.string :as s]))
+  (:require [clojure.string :as s]
+            [clojure.test :refer :all]))
 ;; check if parentheses are balanced
 
 ;; lookup table
@@ -28,7 +29,33 @@
   [s]
   (empty? (process (seq s))))
 
+(defn bal2? "balanced? brackets?" [s]
+  (let [tb  (reduce conj (->> (partition 2 "(){}[]")
+                              (map (fn [[v k]] {k v}))))
+        close? (fn [x] (contains? tb x))
+        open? (fn [x] (some #{x} (vals tb)))]
+    (loop [s s st []]
+      (let [[c & s] s
+            top (peek st)]
+        (cond
+          (nil? c) (empty? st)
+          (open? c) (recur s (conj st c))
+          (close? c)
+          (cond
+            (nil? top) false
+            (= top (get tb c)) (recur s (pop st))
+            :else false)
+          :else (recur s st))))))
+
+(first [])
+(testing
+ (is (bal2? "()"))
+  (is (bal2? "([])"))
+  (is (bal2? "(ab[c]d)"))
+  (is (not (bal2? "(ab[c(]d)"))))
+
 (comment
+  (p ltbl)
   (into {} (for [p (s/split "ab cd" #" ")]
              (s/split p #"")))
   (get ltbl "{")
@@ -51,7 +78,10 @@
   (rest (seq "abc"))
   (let [[x, y] [1]] (prn x y))
   (some #{3} [1,2])
-  (some #{\c} ltbl))
+  (some #{\c} ltbl)
+  (some #{\(} ltbl))
+
+
 
 
 

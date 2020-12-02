@@ -10,7 +10,7 @@
   :main ^:skip-aot sicp.core
   :target-path "target/%s"
   :profiles {:uberjar {:aot :all}
-             :dev { :plugins [[com.jakemccrary/lein-test-refresh "0.23.0"]
+             :dev { :plugins [[com.jakemccrary/lein-test-refresh "0.24.1"]
                              [lein-cljfmt "0.6.3"]
                              ;; [cider/cider-nrepl "0.22.4"]
                              ]
