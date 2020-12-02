@@ -2,15 +2,22 @@
 
 (def compound-proc?)
 (def get-var)
+(def eval-list)
+(def apply-compound-proc)
 
 (defn evall [exp env]
   (let [type-handler (get-var :_exp-type env)
         etype (type-handler exp env)
         handler (get-var etype env)]
     ; (prn exp etype (type etype) (type handler))
-    (if (not (nil? handler))
-      (handler exp env)
-      (throw (Exception. (str "Undefined FN", etype))))))
+    (cond
+      (nil? handler) (throw (Exception. (str "Undefined FN", etype)))
+      (seq? handler) (apply-compound-proc handler (eval-list (rest exp) env) env)
+      :else (handler exp env))
+    ; (if (not (nil? handler))
+    ;   (handler exp env)
+    ;   (throw (Exception. (str "Undefined FN", etype))))
+    ))
 
 (def primitive-proc-symbols #{'+ '- '* '/ '< '> '= 'prn})
 
@@ -60,7 +67,27 @@
       x
       (get-var name (@env :_next-env)))))
 
-(defn compound-proc? [exp env] (and (seq? exp) (not (nil? (get-var (first exp) env)))))
+; (defn compound-proc? [exp env] (and (seq? exp) (not (nil? (get-var (first exp) env)))))
+
+(defn eval-list [exps env]
+  (map (fn [exp] (evall exp env)) exps))
+
+(defn extend-env [params args env]
+  (let [e (atom (into {} (map (fn [p a] [p a])  params args)))]
+    (swap! e assoc :_next-env env)
+    e))
+
+(defn apply-compound-proc [lambda args env]
+  (let [params (second lambda)
+        body (nth lambda 2)
+        env (extend-env params args env)]
+    ; (prn @env)
+    ; (prn body)
+    (cond
+      ; (seq? body) (eval-seq body env)
+      :else (evall body env))))
+
+(into {} (map (fn [p a] [p a]) '(1 2) '(3 4)))
 
 (def fn-map
   {:_exp-type exp-type
@@ -76,7 +103,8 @@
    ; 'def (fn [exp env] (if-let [x (@env (second exp))]
    ;                      (throw (Exception. (str "VAR already defined ", (second exp))))
    ;                      (set-var! (second exp) (evall (nth exp 2) env) env)))
-   :primitive-proc (fn [exp env] (apply (@env (first exp)) (map (fn [exp] (evall exp env)) (rest exp))))
+   :primitive-proc (fn [exp env] (apply (get-var (first exp) env) (eval-list (rest exp) env)))
+   'fn (fn [exp env] exp)
    ; :compound-proc (fn [exp env] (apply (@env (first exp)) (map (fn [exp] (evall exp env)) (rest exp))))
    })
 

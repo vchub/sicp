@@ -9,7 +9,22 @@
 
 (deftest env-test
   (let [evall (fn [exp] (eval1/evall exp eval1/global-env))]
-    ; (prn @env)
+    (testing "compound-proc"
+      (is (= 10 (evall '(do
+                          (def id (fn [x] x))
+                          (id 10)))))
+
+      (is (= 6 (evall '(do
+                         (def add (fn [x y] (+ x y)))
+                         (add 3 3)))))
+
+      (is (= 9 (evall '(do
+                         (def mul (fn [x y]
+                                    (do
+                                      ; (prn "x" x "y" y)
+                                      (* x y))))
+                         (mul 3 3))))))
+
     (testing "def and variable"
       (is (= 1 (evall '(do
                          (def x 1)
@@ -23,7 +38,11 @@
                    (evall '(do
                              (def x 1)
                              (def y 2)
-                             (+ x z))))))
+                             (+ x z)))))
+
+      (is (= '(fn [x] x) (evall '(do
+                                   (def id (fn [x] x))
+                                   id)))))
 
     (testing "primitives"
       (is (= 1 (evall 1)))
