@@ -46,28 +46,14 @@
 (defn set-var! [name val env]
   (swap! env assoc name val))
 
-(defn def-var [exp env]
-  (set-var! (second exp) (evall (nth exp 2) env) env)
-  ; (if-let [x (@env (second exp))]
-  ;                       (throw (Exception. (str "VAR already defined ", (second exp))))
-  ;                       (set-var! (second exp) (evall (nth exp 2) env) env))
-  )
-
-(defn get-var [name env]
-  (if-not (nil? @env)
-    (if-let [x (@env name)]
-      x
-      (get-var name (@env :_next-env)))))
-
 (defn get-var [name env]
   ; (prn "get-var" name (@env name))
   (if (nil? env)
     (throw (Exception. (str "Undefined VAR name: ", name)))
-    (if-let [x (@env name)]
-      x
-      (get-var name (@env :_next-env)))))
-
-; (defn compound-proc? [exp env] (and (seq? exp) (not (nil? (get-var (first exp) env)))))
+    (let [x (@env name)]
+      (if (not (nil? x))
+        x
+        (get-var name (@env :_next-env))))))
 
 (defn eval-list [exps env]
   (map (fn [exp] (evall exp env)) exps))
@@ -87,7 +73,11 @@
       ; (seq? body) (eval-seq body env)
       :else (evall body env))))
 
-(into {} (map (fn [p a] [p a]) '(1 2) '(3 4)))
+(do
+  (def x 2)
+  `(1 ~(dec x)))
+
+(and 1 nil)
 
 (def fn-map
   {:_exp-type exp-type
@@ -99,12 +89,22 @@
 
    'quote (fn [exp env] (second exp))
    'do (fn [exp env] (eval-seq (rest exp) env))
-   'def (fn [exp env] (set-var! (second exp) (evall (nth exp 2) env) env))
-   ; 'def (fn [exp env] (if-let [x (@env (second exp))]
-   ;                      (throw (Exception. (str "VAR already defined ", (second exp))))
-   ;                      (set-var! (second exp) (evall (nth exp 2) env) env)))
+   'set! (fn [exp env] (set-var! (second exp) (evall (nth exp 2) env) env))
+   ; 'def (fn [exp env] (set-var! (second exp) (evall (nth exp 2) env) env))
+   'def (fn [exp env] (if (not (nil? (@env (second exp))))
+                        (throw (Exception. (str "VAR already defined ", (second exp))))
+                        (set-var! (second exp) (evall (nth exp 2) env) env)))
    :primitive-proc (fn [exp env] (apply (get-var (first exp) env) (eval-list (rest exp) env)))
    'fn (fn [exp env] exp)
+   'if (fn [exp env] (if (evall (second exp) env)
+                       (evall (nth exp 2) env)
+                       (evall (nth exp 3) env)))
+   'and (fn [exp env] (evall `(if ~(second exp)
+                                ~(nth exp 2)
+                                ~(second exp)) env))
+   'or (fn [exp env] (evall `(if ~(second exp)
+                               ~(second exp)
+                               ~(nth exp 2)) env))
    ; :compound-proc (fn [exp env] (apply (@env (first exp)) (map (fn [exp] (evall exp env)) (rest exp))))
    })
 
