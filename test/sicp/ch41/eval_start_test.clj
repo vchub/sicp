@@ -4,6 +4,72 @@
 
 (deftest env-test
   (let [evall (fn [exp] (eval1/evall exp (atom (into {} @eval1/global-env))))]
+    (testing "quote, cond"
+      (is (= 'foo (evall ''foo)))
+      (is (= true (evall 'true)))
+
+      (is (= nil  (evall '(cond
+                        false 1 ))))
+
+      ; (is (= nil  (evall '(cond
+      ;                   (> 0 1) (* 1 2) ))))
+      ; (is (= 2 (evall '(do
+      ;                    (def x 2)
+      ;                    (cond
+      ;                   (+ x x) (* 1 2) )))))
+
+      (is (= (list 1 2) (evall ''(1 2))))
+      (is (= [1 2] (evall ''(1 2))))
+      )
+
+    (testing "def, if, and, or, variable"
+
+      (is (= false (evall '(and false false))))
+      (is (= false (evall '(and false true))))
+      (is (= false (evall '(and true false))))
+      (is (= true (evall '(and true true))))
+
+      (is (= 1 (evall '(if (< 1 2) 1 2))))
+      (is (= 2 (evall '(if (> 1 2) 1 2))))
+      (is (= 2 (evall '(if false 1 2))))
+      (is (= 1 (evall '(if true 1 2))))
+
+      (is (= 2 (evall '(if (and (< 0 2) (> 2 4)) (* 1 1) 2))))
+      (is (= 1 (evall '(if (and (< 0 2) (< 2 4)) (* 1 1) 2))))
+      (is (= 1 (evall '(if (or (< 0 2) (> 2 4)) (* 1 1) 2))))
+      (is (= 2 (evall '(if (or (> 0 2) (> 2 4)) (* 1 1) 2))))
+      (is (= 1 (evall '(if (or (> 0 2) (< 2 4)) (* 1 1) 2))))
+
+      (is (= 3 (evall '(if (or true true) 3 2))))
+      (is (= 3 (evall '(if (or true false) 3 2))))
+      (is (= 2 (evall '(if (or false false) 3 2))))
+      (is (= 2 (evall '(if false 3 2))))
+      (is (= 3 (evall '(if true 3 2))))
+
+      (is (= 3 (evall '(if (and (< 0 1) (< 3 4)) 3 2))))
+
+      (is (= 1 (evall '(do
+                         (def x 1)
+                         x))))
+      (is (= 3 (evall '(do
+                         (def x 1)
+                         (def y 2)
+                         (+ x y)))))
+      (is (thrown? Exception
+                   (evall '(do
+                             (def x 1)
+                             (def x 2)
+                             (+ x x)))))
+      (is (thrown? Exception
+                   (evall '(do
+                             (def x 1)
+                             (def x 2)
+                             (+ x z)))))
+
+      (is (= '(fn [x] x) (evall '(do
+                                   (def id (fn [x] x))
+                                   id)))))
+
     (testing "compound-proc"
       (is (= 10 (evall '(do
                           (def id (fn [x] x))
@@ -34,51 +100,6 @@
       (is (= true (evall '(do
                             (set! and (fn [a b] (if a a b)))
                             (and true false))))))
-
-    (testing "def, if, and, or, variable"
-
-      (is (= false (evall '(and false false))))
-      (is (= false (evall '(and false true))))
-      (is (= false (evall '(and true false))))
-      (is (= true (evall '(and true true))))
-
-      (is (= 1 (evall '(if (< 1 2) 1 2))))
-      (is (= 2 (evall '(if (> 1 2) 1 2))))
-      (is (= 2 (evall '(if false 1 2))))
-      (is (= 1 (evall '(if true 1 2))))
-
-      (is (= 2 (evall '(if (and (< 0 2) (> 2 4)) (* 1 1) 2))))
-      (is (= 1 (evall '(if (and (< 0 2) (< 2 4)) (* 1 1) 2))))
-      (is (= 1 (evall '(if (or (< 0 2) (> 2 4)) (* 1 1) 2))))
-      (is (= 2 (evall '(if (or (> 0 2) (> 2 4)) (* 1 1) 2))))
-      (is (= 1 (evall '(if (or (> 0 2) (< 2 4)) (* 1 1) 2))))
-
-      (is (= 3 (evall '(if (or true true) 3 2))))
-      (is (= 3 (evall '(if (or true false) 3 2))))
-      (is (= 2 (evall '(if (or false false) 3 2))))
-      (is (= 2 (evall '(if false 3 2))))
-
-      (is (= 1 (evall '(do
-                         (def x 1)
-                         x))))
-      (is (= 3 (evall '(do
-                         (def x 1)
-                         (def y 2)
-                         (+ x y)))))
-      (is (thrown? Exception
-                   (evall '(do
-                             (def x 1)
-                             (def x 2)
-                             (+ x x)))))
-      (is (thrown? Exception
-                   (evall '(do
-                             (def x 1)
-                             (def x 2)
-                             (+ x z)))))
-
-      (is (= '(fn [x] x) (evall '(do
-                                   (def id (fn [x] x))
-                                   id)))))
 
     (testing "primitives"
       (is (= 1 (evall 1)))

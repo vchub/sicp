@@ -19,18 +19,16 @@
     ;   (throw (Exception. (str "Undefined FN", etype))))
     ))
 
-(def primitive-proc-symbols #{'+ '- '* '/ '< '> '= 'prn})
+(def primitive-proc-symbols #{'+ '- '* '/ '< '> '= 'prn 'first 'rest 'empty? nil?})
 
 (def primitives-env (into {} (map #(vector % (eval %)) primitive-proc-symbols)))
 
 (defn exp-type [exp env]
   (cond
-    (or (number? exp) (string? exp) (boolean? exp) (string? exp)
-        (nil? exp)
+    (or (number? exp) (string? exp) (boolean? exp) (nil? exp)
         (and (seq? exp) (empty? exp))) :self-eval
     (symbol? exp) :symbol
     (not (nil? (primitives-env (first exp)))) :primitive-proc
-    ; (compound-proc? exp env) :compound-proc
     (and (seq? exp) (not (empty? exp))) (first exp)
     :else (throw (Exception. (str "Unknow expression EVAL", exp)))))
 
@@ -77,7 +75,9 @@
   (def x 2)
   `(1 ~(dec x)))
 
-(and 1 nil)
+(let [x [1 2 3]]
+  (next x))
+
 
 (def fn-map
   {:_exp-type exp-type
@@ -105,7 +105,18 @@
    'or (fn [exp env] (evall `(if ~(second exp)
                                ~(second exp)
                                ~(nth exp 2)) env))
-   ; :compound-proc (fn [exp env] (apply (@env (first exp)) (map (fn [exp] (evall exp env)) (rest exp))))
+   ; as macros
+   ; 'cond (fn [exp env] (let [es (rest exp)]
+   ;                       ('if ('empty? es)
+   ;                       nil
+   ;                       ('if ('first es)
+   ;                         ('first ('rest es))
+   ;                         ('cond ('rest ('rest es)))))))
+   'cond (fn [exp env] (if (empty? (rest exp))
+                                 nil
+                                   (if (evall (nth exp 1) env)
+                                   (evall (nth exp 2) env)
+                                   (evall ('cond (drop 3 exp)) env))))
    })
 
 (def global-env (atom (merge primitives-env fn-map)))
