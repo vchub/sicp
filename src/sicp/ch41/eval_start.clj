@@ -12,14 +12,18 @@
     ; (prn exp etype (type etype) (type handler))
     (cond
       (nil? handler) (throw (Exception. (str "Undefined FN", etype)))
-      (seq? handler) (apply-compound-proc handler (eval-list (rest exp) env) env)
+      (and (seq? handler) (= 'fn (first handler)))
+      (apply-compound-proc handler (eval-list (rest exp) env) env)
+      ; TODO macro
+      ; (and (seq? handler) (= 'macro (first handler)))
+      ; (evall (fn [args] (second handler)(second exp)) env)
       :else (handler exp env))
     ; (if (not (nil? handler))
     ;   (handler exp env)
     ;   (throw (Exception. (str "Undefined FN", etype))))
     ))
 
-(def primitive-proc-symbols #{'+ '- '* '/ '< '> '= 'prn 'rest 'empty? nil?})
+(def primitive-proc-symbols #{'+ '- '* '/ '< '> '= 'prn 'rest 'empty? 'nil? 'cons})
 
 (def primitives-env (into {} (map #(vector % (eval %)) primitive-proc-symbols)))
 
@@ -80,6 +84,7 @@
 
 (def fn-map
   {:_exp-type exp-type
+   'evall (fn [exp env] (evall (second exp) env))
    :self-eval (fn [exp env] exp)
    :symbol get-var
    ; :symbol (fn [exp env] (let [x (get-var exp env)]
@@ -107,20 +112,32 @@
    'or (fn [exp env] (evall `(if ~(second exp)
                                ~(second exp)
                                ~(nth exp 2)) env))
+   'first (fn [exp env] (evall (first (evall (second exp) env)) env))
    ; as function in made language
-   'my-cond '(fn [es] (do
-                        (if (empty? es)
-                          nil
-                          (if (first es)
-                            (first (rest es))
-                            (my-cond (rest (rest es)))))))
+   'my-cond '(fn [es] (if (empty? es)
+                        nil
+                        (if (first es)
+                          (first (rest es))
+                          (my-cond (rest (rest es))))))
 
    ; as half-macors
    'cond (fn [exp env] (if (empty? (rest exp))
                          nil
                          (if (evall (nth exp 1) env)
                            (evall (nth exp 2) env)
-                           (evall ('cond (drop 3 exp)) env))))
-   'first (fn [exp env] (evall (first (evall (second exp) env)) env))})
+                           (evall (cons 'cond (drop 3 exp)) env))))
+   ; 'my-cond-m '(macro (do
+   ;                      (prn "++++++++++++++++++")
+   ;                      (if (empty? (rest exp))
+   ;                      nil
+   ;                      (do
+   ;                        (def e (rest exp))
+   ;                        (def cnd (first e))
+   ;                        (prn "=======" e cnd)
+   ;                        (if cnd
+   ;                          (first (rest e))
+   ;                          (evall (my-cond-m (rest (rest exp)))))))))
+   ; end of fn-map
+   })
 
 (def global-env (atom (merge primitives-env fn-map)))

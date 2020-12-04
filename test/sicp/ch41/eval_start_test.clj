@@ -4,6 +4,25 @@
 
 (deftest env-test
   (let [evall (fn [exp] (eval1/evall exp (atom (into {} @eval1/global-env))))]
+    (testing "&args"
+      (let [f (fn [& args] (do
+                            ; (prn args)
+                            (count args)))]
+        (is (= 0 (f)))
+        (is (= 2 (f 1 2)))
+        (is (= 3 (f 1 2 3)))
+        (is (= 2 (f 1 '(2 3))))
+        )
+      )
+
+    (testing "evall, cond macros"
+      (is (= 'foo (evall '(evall 'foo))))
+      (is (= 2 (evall '(evall (+ 1 1)))))
+      (is (= 2 (evall '(evall (if (< 1 0) 1 2)))))
+      (is (= 2 (evall '(evall (if (< 1 0) 1 (evall (+ 1 1)))))))
+      ; (is (= nil  (evall '(my-cond-m false 1))))
+      )
+
     (testing "quote, unquote, cond"
       (is (= 'foo (evall ''foo)))
       (is (= true (evall 'true)))
@@ -17,20 +36,23 @@
                          (def x 2)
                          (cond
                            (+ x x) (* 1 2))))))
+      (is (= 3  (evall '(cond
+                            (> 0 1) 1
+                            (> 0 2) 2
+                            (< 0 3) 3
+                            ))))
 
       (is (= (list 1 2) (evall ''(1 2))))
       (is (= [1 2] (evall ''(1 2))))
 
-      (is (= nil  (evall '(my-cond
-                           '(false 1)))))
-      (is (= 1  (evall '(my-cond
-                         '((< 0 1) 1
+      (is (= nil  (evall '(my-cond '(false 1)))))
+      (is (= 1  (evall '(my-cond '((< 0 1) 1
                                    true 2)))))
-      (is (= 2  (evall '(my-cond
-                         '((> 0 1) 3
+      (is (= 2  (evall '(my-cond '(
+                                   (> 0 1) 3
                                    true 2)))))
-      (is (= 3  (evall '(my-cond
-                         '((> 0 1) 1
+      (is (= 3  (evall '(my-cond '(
+                                   (> 0 1) 1
                                    (> 0 2) 2
                                    (< 0 2) 3)))))
 
