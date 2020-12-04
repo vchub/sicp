@@ -19,7 +19,7 @@
     ;   (throw (Exception. (str "Undefined FN", etype))))
     ))
 
-(def primitive-proc-symbols #{'+ '- '* '/ '< '> '= 'prn 'first 'rest 'empty? nil?})
+(def primitive-proc-symbols #{'+ '- '* '/ '< '> '= 'prn 'rest 'empty? nil?})
 
 (def primitives-env (into {} (map #(vector % (eval %)) primitive-proc-symbols)))
 
@@ -78,16 +78,17 @@
 (let [x [1 2 3]]
   (next x))
 
-
 (def fn-map
   {:_exp-type exp-type
    :self-eval (fn [exp env] exp)
-   :symbol (fn [exp env] (let [x (get-var exp env)]
-                           (if (nil? x)
-                             (throw (Exception. (str "Undefined VAR", name)))
-                             x)))
+   :symbol get-var
+   ; :symbol (fn [exp env] (let [x (get-var exp env)]
+   ;                         (if (nil? x)
+   ;                           (throw (Exception. (str "Undefined VAR", name)))
+   ;                           x)))
 
    'quote (fn [exp env] (second exp))
+   ; 'unquote (fn [exp env] (evall (second exp)) env)
    'do (fn [exp env] (eval-seq (rest exp) env))
    'set! (fn [exp env] (set-var! (second exp) (evall (nth exp 2) env) env))
    ; 'def (fn [exp env] (set-var! (second exp) (evall (nth exp 2) env) env))
@@ -105,18 +106,20 @@
    'or (fn [exp env] (evall `(if ~(second exp)
                                ~(second exp)
                                ~(nth exp 2)) env))
-   ; as macros
-   ; 'cond (fn [exp env] (let [es (rest exp)]
-   ;                       ('if ('empty? es)
-   ;                       nil
-   ;                       ('if ('first es)
-   ;                         ('first ('rest es))
-   ;                         ('cond ('rest ('rest es)))))))
+   ; as function in made language
+   'my-cond '(fn [es] (do
+                        (if (empty? es)
+                          nil
+                          (if (first es)
+                            (first (rest es))
+                            (my-cond (rest (rest es)))))))
+
+   ; as half-macors
    'cond (fn [exp env] (if (empty? (rest exp))
-                                 nil
-                                   (if (evall (nth exp 1) env)
-                                   (evall (nth exp 2) env)
-                                   (evall ('cond (drop 3 exp)) env))))
-   })
+                         nil
+                         (if (evall (nth exp 1) env)
+                           (evall (nth exp 2) env)
+                           (evall ('cond (drop 3 exp)) env))))
+   'first (fn [exp env] (evall (first (evall (second exp) env)) env))})
 
 (def global-env (atom (merge primitives-env fn-map)))

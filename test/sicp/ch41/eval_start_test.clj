@@ -9,18 +9,34 @@
       (is (= true (evall 'true)))
 
       (is (= nil  (evall '(cond
-                        false 1 ))))
-
-      ; (is (= nil  (evall '(cond
-      ;                   (> 0 1) (* 1 2) ))))
-      ; (is (= 2 (evall '(do
-      ;                    (def x 2)
-      ;                    (cond
-      ;                   (+ x x) (* 1 2) )))))
+                            false 1))))
+      (is (= nil  (evall '(cond
+                            (> 0 1) (* 1 2)))))
+      (is (= 2 (evall '(do
+                         (def x 2)
+                         (cond
+                           (+ x x) (* 1 2))))))
 
       (is (= (list 1 2) (evall ''(1 2))))
       (is (= [1 2] (evall ''(1 2))))
-      )
+
+      (is (= nil  (evall '(my-cond
+                           '(false 1)))))
+      (is (= 1  (evall '(my-cond
+                         '((< 0 1) 1
+                                   true 2)))))
+      (is (= 2  (evall '(my-cond
+                         '((> 0 1) 3
+                                   true 2)))))
+      (is (= 3  (evall '(my-cond
+                         '((> 0 1) 1
+                                   (> 0 2) 2
+                                   (< 0 2) 3)))))
+
+      (is (= 1 (evall '(first '(1 3 4)))))
+      (is (= 2 (evall '(first '((+ 1 1) 3 4)))))
+      (is (= 2 (evall '(if (first '(false 3 4)) 1 2))))
+      (is (= 2 (evall '(if (first '((> 1 2) 3 4)) 1 2)))))
 
     (testing "def, if, and, or, variable"
 
