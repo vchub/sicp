@@ -87,8 +87,9 @@
    ;                           (throw (Exception. (str "Undefined VAR", name)))
    ;                           x)))
 
+   ; 'quote-l (fn [exp env] (second exp))
    'quote (fn [exp env] (second exp))
-   ; 'unquote (fn [exp env] (evall (second exp)) env)
+   'unquote-l (fn [exp env] (evall (second exp) env))
    'do (fn [exp env] (eval-seq (rest exp) env))
    'set! (fn [exp env] (set-var! (second exp) (evall (nth exp 2) env) env))
    ; 'def (fn [exp env] (set-var! (second exp) (evall (nth exp 2) env) env))

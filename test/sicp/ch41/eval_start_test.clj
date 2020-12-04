@@ -4,9 +4,10 @@
 
 (deftest env-test
   (let [evall (fn [exp] (eval1/evall exp (atom (into {} @eval1/global-env))))]
-    (testing "quote, cond"
+    (testing "quote, unquote, cond"
       (is (= 'foo (evall ''foo)))
       (is (= true (evall 'true)))
+      (is (= true (evall '(unquote-l 'true))))
 
       (is (= nil  (evall '(cond
                             false 1))))
@@ -36,7 +37,8 @@
       (is (= 1 (evall '(first '(1 3 4)))))
       (is (= 2 (evall '(first '((+ 1 1) 3 4)))))
       (is (= 2 (evall '(if (first '(false 3 4)) 1 2))))
-      (is (= 2 (evall '(if (first '((> 1 2) 3 4)) 1 2)))))
+      (is (= 2 (evall '(if (first '((> 1 2) 3 4)) 1 2))))
+      )
 
     (testing "def, if, and, or, variable"
 
