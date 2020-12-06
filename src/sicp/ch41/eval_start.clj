@@ -1,108 +1,92 @@
 (ns sicp.ch41.eval-start)
 
-(def compound-proc?)
-(def get-var)
-(def eval-list)
-(def apply-compound-proc)
+(def _get-var)
 
-(defn evall [exp env]
-  (let [type-handler (get-var :_exp-type env)
-        etype (type-handler exp env)
-        handler (get-var etype env)]
-    ; (prn exp etype (type etype) (type handler))
-    (cond
-      (nil? handler) (throw (Exception. (str "Undefined FN", etype)))
-      (and (seq? handler) (= 'fn (first handler)))
-      (apply-compound-proc handler (eval-list (rest exp) env) env)
-      ; TODO macro
-      ; (and (seq? handler) (= 'macro (first handler)))
-      ; (evall (fn [args] (second handler)(second exp)) env)
-      :else (handler exp env))
-    ; (if (not (nil? handler))
-    ;   (handler exp env)
-    ;   (throw (Exception. (str "Undefined FN", etype))))
-    ))
-
-(def primitive-proc-symbols #{'+ '- '* '/ '< '> '= 'prn 'rest 'empty? 'nil? 'cons})
+(def primitive-proc-symbols #{'+ '- '* '/ '< '> '= 'prn 'rest 'empty? 'nil? 'cons 'list})
 
 (def primitives-env (into {} (map #(vector % (eval %)) primitive-proc-symbols)))
 
-(defn exp-type [exp env]
-  (cond
-    (or (number? exp) (string? exp) (boolean? exp) (nil? exp)
-        (and (seq? exp) (empty? exp))) :self-eval
-    (symbol? exp) :symbol
-    (not (nil? (primitives-env (first exp)))) :primitive-proc
-    (and (seq? exp) (not (empty? exp))) (first exp)
-    :else (throw (Exception. (str "Unknow expression EVAL", exp)))))
+(def global-env (atom primitives-env))
+
+(defn install! [env fn-name tag proc] (swap! env assoc (list fn-name tag) proc))
+(defn it! [tag proc] (install! global-env 'evall tag proc))
+
+(defn dispatcher [env fn-name]
+  (let [d (fn [tag args]
+            (let [f (or (_get-var (list fn-name tag) env)
+                        (_get-var (list fn-name :default) env))]
+              ; (prn tag args)
+              (apply f args)))]
+    (fn [& args]
+      (let [tag (first args)]
+        (cond
+          (or (number? tag) (string? tag) (boolean? tag) (nil? tag)) (d :self-eval args)
+          (symbol? tag) (d :symbol args)
+          :else (d (first tag) args))))))
+
+(defn evall [exp env] ((dispatcher env 'evall) exp env))
 
 (defn eval-seq [exps env]
-  (cond
-    (empty? exps) nil
-    (empty? (rest exps)) (evall (first exps) env)
-    :else
-    (do
-      (evall (first exps) env)
-      (eval-seq (rest exps) env))))
+  ; (reduce (fn [acc exp] (evall exp env)) exps)
+  (loop [acc nil exps exps]
+    (cond
+      (empty? exps) acc
+      :else (recur (evall (first exps) env) (rest exps)))))
 
 (defn set-var! [name val env]
-  (swap! env assoc name val))
+  (swap! env assoc name val)
+  )
 
-(defn get-var [name env]
-  ; (prn "get-var" name (@env name))
+(defn _get-var [name env]
   (if (nil? env)
-    (throw (Exception. (str "Undefined VAR name: ", name)))
-    (let [x (@env name)]
+    nil
+    (let [x (get @env name)]
       (if (not (nil? x))
         x
-        (get-var name (@env :_next-env))))))
+        (_get-var name (get @env :_next-env))))))
+
+(defn get-var [name env]
+  (let [x (_get-var name env)]
+    (if (nil? x)
+      (throw (Exception. (str "Undefined VAR name: ", name)))
+      x)))
 
 (defn eval-list [exps env]
-  (map (fn [exp] (evall exp env)) exps))
+  (map #(evall % env) exps))
 
 (defn extend-env [params args env]
-  (let [e (atom (into {} (map (fn [p a] [p a])  params args)))]
+  ; (let [p-env (into @env (map vector params args))]
+  ;   (atom p-env))
+  (let [e (atom (into {} (map vector params args)))]
     (swap! e assoc :_next-env env)
     e))
 
-(defn apply-compound-proc [lambda args env]
-  (let [params (second lambda)
-        body (nth lambda 2)
-        env (extend-env params args env)]
-    ; (prn @env)
-    ; (prn body)
-    (cond
-      ; (seq? body) (eval-seq body env)
-      :else (evall body env))))
-
-(do
-  (def x 2)
-  `(1 ~(dec x)))
-
-(let [x [1 2 3]]
-  (next x))
+(defn apply-proc [proc args env]
+  (if (seq? proc)
+    (let [params (second proc)
+          body (nth proc 2)
+          env (extend-env params args env)]
+      (evall body env))
+    (apply proc args)))
 
 (def fn-map
-  {:_exp-type exp-type
-   'evall (fn [exp env] (evall (second exp) env))
+  {'evall (fn [exp env] (evall (second exp) env))
    :self-eval (fn [exp env] exp)
    :symbol get-var
-   ; :symbol (fn [exp env] (let [x (get-var exp env)]
-   ;                         (if (nil? x)
-   ;                           (throw (Exception. (str "Undefined VAR", name)))
-   ;                           x)))
+   :default (fn [exp env] (let [f (evall (first exp) env)]
+                            ; (prn "f:" f)
+                            (apply-proc f (eval-list (rest exp) env) env)))
 
-   ; 'quote-l (fn [exp env] (second exp))
    'quote (fn [exp env] (second exp))
    'unquote-l (fn [exp env] (evall (second exp) env))
+
    'do (fn [exp env] (eval-seq (rest exp) env))
    'set! (fn [exp env] (set-var! (second exp) (evall (nth exp 2) env) env))
-   ; 'def (fn [exp env] (set-var! (second exp) (evall (nth exp 2) env) env))
    'def (fn [exp env] (if (not (nil? (@env (second exp))))
                         (throw (Exception. (str "VAR already defined ", (second exp))))
                         (set-var! (second exp) (evall (nth exp 2) env) env)))
-   :primitive-proc (fn [exp env] (apply (get-var (first exp) env) (eval-list (rest exp) env)))
    'fn (fn [exp env] exp)
+
    'if (fn [exp env] (if (evall (second exp) env)
                        (evall (nth exp 2) env)
                        (evall (nth exp 3) env)))
@@ -119,25 +103,17 @@
                         (if (first es)
                           (first (rest es))
                           (my-cond (rest (rest es))))))
-
    ; as half-macors
    'cond (fn [exp env] (if (empty? (rest exp))
                          nil
                          (if (evall (nth exp 1) env)
                            (evall (nth exp 2) env)
                            (evall (cons 'cond (drop 3 exp)) env))))
-   ; 'my-cond-m '(macro (do
-   ;                      (prn "++++++++++++++++++")
-   ;                      (if (empty? (rest exp))
-   ;                      nil
-   ;                      (do
-   ;                        (def e (rest exp))
-   ;                        (def cnd (first e))
-   ;                        (prn "=======" e cnd)
-   ;                        (if cnd
-   ;                          (first (rest e))
-   ;                          (evall (my-cond-m (rest (rest exp)))))))))
    ; end of fn-map
    })
 
-(def global-env (atom (merge primitives-env fn-map)))
+(doseq [[tag proc] fn-map] (it! tag proc))
+; (prn global-env)
+
+
+; (def global-env (atom (merge primitives-env fn-map)))

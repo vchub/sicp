@@ -3,17 +3,23 @@
             [sicp.ch41.eval-start :as eval1]))
 
 (deftest env-test
-  (let [evall (fn [exp] (eval1/evall exp (atom (into {} @eval1/global-env))))]
+  (let [new-env (fn [] (atom (into {} @eval1/global-env)))
+        evall (fn [exp] (eval1/evall exp (new-env)))]
+    (testing "let"
+      (is (= (list 1 1) (evall '(cons 1 '(1)))))
+      (is (= (list 1 2) (evall '(cons 1 (cons (+ 1 1) nil)))))
+      (is (= (list 1 2) (evall '(list 1 2))))
+      (is (= (list 1 2) (evall '(list 1 (+ 1 1)))))
+      (is (= 2 (evall '((fn [x] (+ x 1)) 1)))))
+
     (testing "&args"
       (let [f (fn [& args] (do
                             ; (prn args)
-                            (count args)))]
+                             (count args)))]
         (is (= 0 (f)))
         (is (= 2 (f 1 2)))
         (is (= 3 (f 1 2 3)))
-        (is (= 2 (f 1 '(2 3))))
-        )
-      )
+        (is (= 2 (f 1 '(2 3))))))
 
     (testing "evall, cond macros"
       (is (= 'foo (evall '(evall 'foo))))
@@ -37,30 +43,26 @@
                          (cond
                            (+ x x) (* 1 2))))))
       (is (= 3  (evall '(cond
-                            (> 0 1) 1
-                            (> 0 2) 2
-                            (< 0 3) 3
-                            ))))
+                          (> 0 1) 1
+                          (> 0 2) 2
+                          (< 0 3) 3))))
 
       (is (= (list 1 2) (evall ''(1 2))))
       (is (= [1 2] (evall ''(1 2))))
 
-      (is (= nil  (evall '(my-cond '(false 1)))))
-      (is (= 1  (evall '(my-cond '((< 0 1) 1
-                                   true 2)))))
-      (is (= 2  (evall '(my-cond '(
-                                   (> 0 1) 3
-                                   true 2)))))
-      (is (= 3  (evall '(my-cond '(
-                                   (> 0 1) 1
-                                   (> 0 2) 2
-                                   (< 0 2) 3)))))
+      ; (is (= nil  (evall '(my-cond '(false 1)))))
+      ; (is (= 1  (evall '(my-cond '((< 0 1) 1
+      ;                                      true 2)))))
+      ; (is (= 2  (evall '(my-cond '((> 0 1) 3
+      ;                                      true 2)))))
+      ; (is (= 3  (evall '(my-cond '((> 0 1) 1
+      ;                                      (> 0 2) 2
+      ;                                      (< 0 2) 3)))))
 
       (is (= 1 (evall '(first '(1 3 4)))))
       (is (= 2 (evall '(first '((+ 1 1) 3 4)))))
       (is (= 2 (evall '(if (first '(false 3 4)) 1 2))))
-      (is (= 2 (evall '(if (first '((> 1 2) 3 4)) 1 2))))
-      )
+      (is (= 2 (evall '(if (first '((> 1 2) 3 4)) 1 2)))))
 
     (testing "def, if, and, or, variable"
 
@@ -111,6 +113,10 @@
                                    id)))))
 
     (testing "compound-proc"
+      ; anonymous
+      (is (= 10 (evall '((fn [x] x) 10))))
+      (is (= 50 (evall '((fn [x y] (* x y)) 10 5))))
+
       (is (= 10 (evall '(do
                           (def id (fn [x] x))
                           (id 10)))))
@@ -136,10 +142,20 @@
       (is (= true (evall '(do (def a true) a))))
       (is (= false (evall '(do (def a false) a))))
 
-      ; wrong and = or
-      (is (= true (evall '(do
-                            (set! and (fn [a b] (if a a b)))
-                            (and true false))))))
+      ; wrong and = or   Can't be done now
+      ; (is (= true (evall '(do
+      ;                       (set! and (fn [a b] (if a a b)))
+      ;                       (and true false)))))
+      )
+
+    (testing "set get def"
+      (is (= 1 (do
+                 (def env (new-env))
+                 (eval1/set-var! 'z 1 env)
+                 (eval1/get-var 'z env))))
+
+      (is (= 3 (evall '(do (def x 3) x))))
+      (is (= 2 (evall '(do (def y (+ 1 1)) y)))))
 
     (testing "primitives"
       (is (= 1 (evall 1)))

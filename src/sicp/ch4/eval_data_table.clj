@@ -15,10 +15,7 @@
 
 (defn dispatcher [table fn-name]
   (letfn [(d [tag args]
-            ;; (prn  "f-name" fn-name "tag" tag)
             (let [f (get @table (list fn-name tag) (get @table (list 'eval-f :default)))]
-                          ;; (prn "table" table)
-                          ;; (prn "f" f "args" args)
               (apply f args)))]
     (fn [& args]
       (let [tag (first args)]
@@ -68,6 +65,9 @@
   (testing "eval-f"
     (let [env (make-env)
           eval-f (fn [exp] (eval-f exp env))]
+
+      (is (= 1 (eval-f 1)))
+
       (is (= 1 (eval-f 1)))
       (is (= "foo" (eval-f "foo")))
       (is (= nil (eval-f 'x)))
@@ -90,6 +90,8 @@
       (is (= 7 (eval-f '(sum (sum 2 3) (* 1 2)))))
       ;;
       ;; anonymous fn invocation and local def-f!
+      (is (= 3 (eval-f '((fn [x] (+ x 1)) 2))))
+
       (is (= 3 (eval-f '((fn [] 3)))))
       (is (= -1 (eval-f '((fn []
                             (def-f! sum (fn [x y] (- x y)))
