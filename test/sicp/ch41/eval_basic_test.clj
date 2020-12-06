@@ -1,76 +1,10 @@
-(ns sicp.ch41.eval-start-test
+(ns sicp.ch41.eval-basic-test
   (:require [clojure.test :refer :all]
-            [sicp.ch41.eval-start :as eval1]))
+            [sicp.ch41.eval-basic :as eval1]))
 
 (deftest env-test
   (let [new-env (fn [] (atom (into {} @eval1/global-env)))
         evall (fn [exp] (eval1/evall exp (new-env)))]
-    (testing "let and fn with seq of exps"
-      (is (= (list 1 1) (evall '(cons 1 '(1)))))
-      (is (= (list 1 2) (evall '(cons 1 (cons (+ 1 1) nil)))))
-      (is (= (list 1 2) (evall '(list 1 2))))
-      (is (= (list 1 2) (evall '(list 1 (+ 1 1)))))
-      (is (= 2 (evall '((fn [x] (+ x 1)) 1))))
-
-      (is (= 2 (evall '(let [x 1] (+ 1 x)))))
-      (is (= 6 (evall '(let [x 1 y 2 z 3] (+ x y z)))))
-      (is (= 6 (evall '((fn [x y]
-                          (+ x y)
-                          (/ x y)
-                          (* x y)) 2 3))))
-      )
-
-    (testing "&args"
-      (let [f (fn [& args] (do
-                            ; (prn args)
-                             (count args)))]
-        (is (= 0 (f)))
-        (is (= 2 (f 1 2)))
-        (is (= 3 (f 1 2 3)))
-        (is (= 2 (f 1 '(2 3))))))
-
-    (testing "evall, cond macros"
-      (is (= 'foo (evall '(evall 'foo))))
-      (is (= 2 (evall '(evall (+ 1 1)))))
-      (is (= 2 (evall '(evall (if (< 1 0) 1 2)))))
-      (is (= 2 (evall '(evall (if (< 1 0) 1 (evall (+ 1 1)))))))
-      ; (is (= nil  (evall '(my-cond-m false 1))))
-      )
-
-    (testing "quote, unquote, cond"
-      (is (= 'foo (evall ''foo)))
-      (is (= true (evall 'true)))
-      (is (= true (evall '(unquote-l 'true))))
-
-      (is (= nil  (evall '(cond
-                            false 1))))
-      (is (= nil  (evall '(cond
-                            (> 0 1) (* 1 2)))))
-      (is (= 2 (evall '(do
-                         (def x 2)
-                         (cond
-                           (+ x x) (* 1 2))))))
-      (is (= 3  (evall '(cond
-                          (> 0 1) 1
-                          (> 0 2) 2
-                          (< 0 3) 3))))
-
-      (is (= (list 1 2) (evall ''(1 2))))
-      (is (= [1 2] (evall ''(1 2))))
-
-      ; (is (= nil  (evall '(my-cond '(false 1)))))
-      ; (is (= 1  (evall '(my-cond '((< 0 1) 1
-      ;                                      true 2)))))
-      ; (is (= 2  (evall '(my-cond '((> 0 1) 3
-      ;                                      true 2)))))
-      ; (is (= 3  (evall '(my-cond '((> 0 1) 1
-      ;                                      (> 0 2) 2
-      ;                                      (< 0 2) 3)))))
-
-      (is (= 1 (evall '(first '(1 3 4)))))
-      (is (= 2 (evall '(first '((+ 1 1) 3 4)))))
-      (is (= 2 (evall '(if (first '(false 3 4)) 1 2))))
-      (is (= 2 (evall '(if (first '((> 1 2) 3 4)) 1 2)))))
 
     (testing "def, if, and, or, variable"
 
@@ -178,4 +112,5 @@
       (is (= true (evall '(= 1 1))))
       (is (= true (evall '(= "a" "a"))))
       (is (= false (evall '(= "b" "a"))))
-      (is (= 6 (evall '(* (+ 2 1) (/ 2 1))))))))
+      (is (= 6 (evall '(* (+ 2 1) (/ 2 1)))))
+      )))

@@ -1,4 +1,4 @@
-(ns sicp.ch41.eval-start)
+(ns sicp.ch41.eval-basic)
 
 (def _get-var)
 
@@ -11,20 +11,27 @@
 (defn install! [env fn-name tag proc] (swap! env assoc (list fn-name tag) proc))
 (defn it! [tag proc] (install! global-env 'evall tag proc))
 
-(defn dispatcher [env fn-name]
-  (let [d (fn [tag args]
-            (let [f (or (_get-var (list fn-name tag) env)
-                        (_get-var (list fn-name :default) env))]
-              ; (prn tag args)
-              (apply f args)))]
-    (fn [& args]
-      (let [tag (first args)]
-        (cond
-          (or (number? tag) (string? tag) (boolean? tag) (nil? tag)) (d :self-eval args)
-          (symbol? tag) (d :symbol args)
-          :else (d (first tag) args))))))
+; (defn dispatcher [env fn-name]
+;   (let [d (fn [tag args]
+;             (let [f (or (_get-var (list fn-name tag) env)
+;                         (_get-var (list fn-name :default) env))]
+;               ; (prn tag args)
+;               (apply f args)))]
+;     (fn [& args]
+;       (let [tag (first args)]
+;         (cond
+;           (or (number? tag) (string? tag) (boolean? tag) (nil? tag)) (d :self-eval args)
+;           (symbol? tag) (d :symbol args)
+;           :else (d (first tag) args))))))
 
-(defn evall [exp env] ((dispatcher env 'evall) exp env))
+(defn evall [exp env]
+  (let [d (fn [tag] (or (_get-var (list 'evall tag) env)
+                        (_get-var (list 'evall :default) env)))]
+    (cond
+      (or (number? exp) (string? exp) (boolean? exp) (nil? exp))
+      ((d :self-eval) exp env)
+      (symbol? exp) ((d :symbol) exp env)
+      :else ((d (first exp)) exp env))))
 
 (defn eval-seq [exps env]
   ; (reduce (fn [acc exp] (evall exp env)) exps)
@@ -54,8 +61,6 @@
   (map #(evall % env) exps))
 
 (defn extend-env [params args env]
-  ; (let [p-env (into @env (map vector params args))]
-  ;   (atom p-env))
   (let [e (atom (into {} (map vector params args)))]
     (swap! e assoc :_next-env env)
     e))
@@ -63,9 +68,9 @@
 (defn apply-proc [proc args env]
   (if (seq? proc)
     (let [params (second proc)
-          body (drop 2  proc)
+          body (nth proc 2)
           env (extend-env params args env)]
-      (eval-seq body env))
+      (evall body env))
     (apply proc args)))
 
 (def fn-map
@@ -73,7 +78,6 @@
    :self-eval (fn [exp env] exp)
    :symbol get-var
    :default (fn [exp env] (let [f (evall (first exp) env)]
-                            ; (prn "f:" f)
                             (apply-proc f (eval-list (rest exp) env) env)))
 
    'quote (fn [exp env] (second exp))
@@ -108,23 +112,13 @@
                          (if (evall (nth exp 1) env)
                            (evall (nth exp 2) env)
                            (evall (cons 'cond (drop 3 exp)) env))))
-   'let (fn [exp env] (let [body (nth exp 2)
-                            es (second exp)
-                            run (fn f [es]
-                                  (let [[param arg & es] es]
-                                    (if (empty? es)
-                                      (list (list 'fn [param] body) arg)
-                                      (list (list 'fn [param] (f es)) arg))))]
-
-                        (evall (run es) env)))
    ; end of fn-map
    })
 
-; (let [fc (fn fc [x] (if (< x 2) 1 (* x (fc (dec x)))))]
-;   (fc 3))
 
 (doseq [[tag proc] fn-map] (it! tag proc))
+; (swap! global-env merge fn-map)
 ; (prn global-env)
 
 
-; (def global-env (atom (merge primitives-env fn-map)))
+;
