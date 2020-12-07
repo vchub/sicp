@@ -115,13 +115,20 @@
                                     (if (empty? es)
                                       (list (list 'fn [param] body) arg)
                                       (list (list 'fn [param] (f es)) arg))))]
-
                         (evall (run es) env)))
+
+   'let-loop (fn [exp env] (let [name (second exp)
+                                 pas (nth exp 2)
+                                 [ps args] (reduce (fn [[ps as] [p a]]
+                                                     [(conj ps p) (conj as a)]) [[] []] pas)
+                                 body (nth exp 3)
+                                 res (list 'let [name (list 'fn ps body)] (cons name args))]
+                             (evall res env)))
+
    ; end of fn-map
    })
 
-; (let [fc (fn fc [x] (if (< x 2) 1 (* x (fc (dec x)))))]
-;   (fc 3))
+(reduce (fn [[ps as] [p a]] [(conj ps p) (conj as a)]) [[] []] '((:x 1) (:y 2)))
 
 (doseq [[tag proc] fn-map] (it! tag proc))
 ; (prn global-env)

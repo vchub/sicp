@@ -12,13 +12,33 @@
       (is (= (list 1 2) (evall '(list 1 (+ 1 1)))))
       (is (= 2 (evall '((fn [x] (+ x 1)) 1))))
 
-      (is (= 2 (evall '(let [x 1] (+ 1 x)))))
-      (is (= 6 (evall '(let [x 1 y 2 z 3] (+ x y z)))))
       (is (= 6 (evall '((fn [x y]
                           (+ x y)
                           (/ x y)
                           (* x y)) 2 3))))
-      )
+
+      (is (= 2 (evall '(let [x 1] (+ 1 x)))))
+      (is (= 6 (evall '(let [x 1 y 2 z 3] (+ x y z)))))
+      (is (= 13 (evall '(let [x 2 y (* x 2) z (+ y 3)] (+ x y z)))))
+      (is (= 4 (evall '(let [f (fn [x] (* 2 x))] (f 2)))))
+      (is (= 6 (evall '(let [fact (fn [x] (if (< x 2) 1 (* x (fact (- x 1)))))] (fact 3)))))
+
+      (is (= 8 (evall '(do
+                         (def fib (fn [n]
+                                    (let-loop fib-iter [(a 1) (b 0) (count n)]
+                                              (if (= count 0)
+                                                b
+                                                (fib-iter (+ a b)
+                                                          a
+                                                          (- count 1))))))
+                         (fib 6)))))
+
+      (is (= 5 (evall '(do
+                         (def fib (fn [n] (cond
+                                            (= n 0) 0
+                                            (= n 1) 1
+                                            true (+ (fib (- n 1)) (fib (- n 2))))))
+                         (fib 5))))))
 
     (testing "&args"
       (let [f (fn [& args] (do
