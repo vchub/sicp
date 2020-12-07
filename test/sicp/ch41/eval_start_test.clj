@@ -16,8 +16,7 @@
                                            (runner (- n 1)))
                                          nil)))
                          (runner 5)
-                         cnt))))
-      )
+                         cnt)))))
 
     (testing "let and fn with seq of exps"
       (is (= (list 1 1) (evall '(cons 1 '(1)))))
