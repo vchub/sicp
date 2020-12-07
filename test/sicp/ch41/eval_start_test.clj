@@ -5,6 +5,20 @@
 (deftest env-test
   (let [new-env (fn [] (atom (into {} @eval1/global-env)))
         evall (fn [exp] (eval1/evall exp (new-env)))]
+
+    (testing "closure"
+      (is (= 5 (evall '(do
+                         (def cnt 0)
+                         (def runner (fn [n]
+                                       (if (> n 0)
+                                         (do
+                                           (set! cnt (+ cnt 1))
+                                           (runner (- n 1)))
+                                         nil)))
+                         (runner 5)
+                         cnt))))
+      )
+
     (testing "let and fn with seq of exps"
       (is (= (list 1 1) (evall '(cons 1 '(1)))))
       (is (= (list 1 2) (evall '(cons 1 (cons (+ 1 1) nil)))))
@@ -177,10 +191,6 @@
       )
 
     (testing "set get def"
-      (is (= 1 (do
-                 (def env (new-env))
-                 (eval1/set-var! 'z 1 env)
-                 (eval1/get-var 'z env))))
 
       (is (= 3 (evall '(do (def x 3) x))))
       (is (= 2 (evall '(do (def y (+ 1 1)) y)))))

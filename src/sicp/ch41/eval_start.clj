@@ -34,7 +34,15 @@
       :else (recur (evall (first exps) env) (rest exps)))))
 
 (defn set-var! [name val env]
-  (swap! env assoc name val))
+  (if (nil? env)
+    (throw (Exception. (str "Trying to set! Undefined VAR:" name)))
+    (let [v (@env name)]
+      (if (not (nil? v))
+        (swap! env assoc name val)
+        (set-var! name val (@env :_next-env))))
+
+    )
+  )
 
 (defn _get-var [name env]
   (if (nil? env)
@@ -83,7 +91,7 @@
    'set! (fn [exp env] (set-var! (second exp) (evall (nth exp 2) env) env))
    'def (fn [exp env] (if (not (nil? (@env (second exp))))
                         (throw (Exception. (str "VAR already defined ", (second exp))))
-                        (set-var! (second exp) (evall (nth exp 2) env) env)))
+                        (swap! env assoc (second exp) (evall (nth exp 2) env) )))
    'fn (fn [exp env] exp)
 
    'if (fn [exp env] (if (evall (second exp) env)
@@ -120,10 +128,12 @@
    'let-loop (fn [exp env] (let [name (second exp)
                                  pas (nth exp 2)
                                  [ps args] (reduce (fn [[ps as] [p a]]
-                                                     [(conj ps p) (conj as a)]) [[] []] pas)
+                                                   [(conj ps p) (conj as a)]) [[] []] pas)
                                  body (nth exp 3)
-                                 res (list 'let [name (list 'fn ps body)] (cons name args))]
-                             (evall res env)))
+                                 res (list 'let [name (list 'fn ps body )] (cons name args))
+                                 ]
+                             (evall res env)
+                             ))
 
    ; end of fn-map
    })
