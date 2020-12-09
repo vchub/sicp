@@ -2,9 +2,62 @@
   (:require [clojure.test :refer :all]
             [sicp.ch41.eval-start :as eval1]))
 
+(deftest turing
+  "Turing's Halting Theorem
+   halts? says if (proc args) stops (halts)
+   try-f - use halts? as subrotine"
+
+  (def halts? (fn response [proc args] args))
+  (defn run-forever [] (run-forever))
+
+  (defn try-f [proc helper] (if (halts? proc helper)
+                              'run-forever
+                              'halts))
+
+  (is (= 'run-forever (try-f try-f true)))
+  (is (= 'halts (try-f try-f false))))
+
 (deftest env-test
   (let [new-env (fn [] (atom (into {} @eval1/global-env)))
         evall (fn [exp] (eval1/evall exp (new-env)))]
+
+    (testing "order of evalution. ex 4.19"
+      (is (= 12 (let [a 1]
+                  (do (def f (fn [x]
+                               (def b (+ a x))
+                               (def a 5)
+                               (+ a b)))
+                      (f 10)))))
+
+      (is (= 1 (evall '(let [a 1] a))))
+
+      (is (= 3 (evall '(do
+                         (def f (fn [x] x)
+                           (def b (+ 2 x))
+                           b)
+                         (f 3)))))
+
+      (is (= 11 (evall '(let [a 1]
+                          (def f (fn [x] (+ a x)))
+                          (f 10)))))
+
+      (is (= 16 (evall '(let [a 1]
+                          (do (def f (fn [x]
+                                       (def b (+ a x))
+                                       (def a 5)
+                                       (+ a b)))
+                              (f 10)))))))
+
+    (testing "mutual recursion"
+      (is (= true (evall '(do
+                            (def f (fn [x]
+                                     ; (def odd?_ nil)
+                                     ; (def even?_ nil)
+                                     (def odd?_ (fn [x] (if (= 0 x) false (even?_ (- x 1)))))
+                                     (def even?_ (fn  [x] (if (= 0 x) true (odd?_ (- x 1)))))
+
+                                     (odd?_ x)))
+                            (f 5))))))
 
     (testing "closure"
       (is (= 5 (evall '(do

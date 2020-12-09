@@ -27,11 +27,12 @@
 (defn evall [exp env] ((dispatcher env 'evall) exp env))
 
 (defn eval-seq [exps env]
-  ; (reduce (fn [acc exp] (evall exp env)) exps)
-  (loop [acc nil exps exps]
-    (cond
-      (empty? exps) acc
-      :else (recur (evall (first exps) env) (rest exps)))))
+  (reduce (fn [acc exp] (evall exp env)) ["" env] exps)
+  ; (loop [acc nil exps exps]
+  ;   (cond
+  ;     (empty? exps) acc
+  ;     :else (recur (evall (first exps) env) (rest exps))))
+  )
 
 (defn set-var! [name val env]
   (if (nil? env)
@@ -114,12 +115,14 @@
                          (if (evall (nth exp 1) env)
                            (evall (nth exp 2) env)
                            (evall (cons 'cond (drop 3 exp)) env))))
-   'let (fn [exp env] (let [body (nth exp 2)
+   'let (fn [exp env] (let [
+                            ; body (nth exp 2)
+                            body (drop 2 exp)
                             es (second exp)
                             run (fn f [es]
                                   (let [[param arg & es] es]
                                     (if (empty? es)
-                                      (list (list 'fn [param] body) arg)
+                                      (list (list* 'fn [param] body) arg)
                                       (list (list 'fn [param] (f es)) arg))))]
                         (evall (run es) env)))
 
@@ -146,10 +149,9 @@
   "repl of made evall"
   (loop [in nil promt "e=> "]
     (when (not= in "q")
-      (print promt )
+      (print promt)
       (flush)
-      (let [in (clojure.string/trim (read-line))
-            ]
+      (let [in (clojure.string/trim (read-line))]
         ; (println (read-string in) )
         (println (evall (read-string in) global-env))
         (recur in promt)))))
