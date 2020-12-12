@@ -87,10 +87,11 @@
 
    'do (fn [exp env] (eval-seq (rest exp) env))
    'set! (fn [exp env] (set-var! (second exp) (evall (nth exp 2) env) env) nil)
-   'def (fn [exp env] (if (not (nil? (@env (second exp))))
-                        (throw (Exception. (str "VAR already defined ", (second exp))))
-                        (swap! env assoc (second exp) (evall (nth exp 2) env)))
-          nil)
+   ; 'def (fn [exp env] (if (not (nil? (@env (second exp))))
+   ;                      (throw (Exception. (str "VAR already defined ", (second exp))))
+   ;                      (swap! env assoc (second exp) (evall (nth exp 2) env)))
+   'def (fn [exp env] (let [k (second exp)] (swap! env assoc k (evall (nth exp 2) env)) k))
+
    'fn (fn [exp env] exp)
 
    'if (fn [exp env] (if (evall (second exp) env)

@@ -125,7 +125,7 @@
                  (fn [n] (if (< n 2) 1 (* n (factorial (- n 1))))))
                                  (factorial 20)) env))
       ch41-fact (fn[](ch41/global-eval '(do
-                                   (set! factorial
+                                   (def factorial
                           (fn [n] (if (< n 2) 1 (* n (factorial (- n 1))))))
                                    (factorial 20))))
       ]

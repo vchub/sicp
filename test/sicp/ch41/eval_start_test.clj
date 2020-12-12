@@ -7,12 +7,12 @@
    halts? says if (proc args) stops (halts)
    try-f - use halts? as subrotine"
 
-  (def halts? (fn response [proc args] args))
+  (defn halts? [proc args] args)
   (defn run-forever [] (run-forever))
 
-  (defn try-f [proc helper] (if (halts? proc helper)
-                              'run-forever
-                              'halts))
+  (defn try-f [proc args] (if (halts? proc args)
+                            'run-forever
+                            'halts))
 
   (is (= 'run-forever (try-f try-f true)))
   (is (= 'halts (try-f try-f false))))
@@ -20,6 +20,21 @@
 (deftest env-test
   (let [new-env (fn [] (atom (into {} @eval1/global-env)))
         evall (fn [exp] (eval1/evall exp (new-env)))]
+
+    (testing "non strict if, deivatives"
+      (is (= 'cool (evall '(if true 'cool (/ 1 0)))))
+      (is (thrown? ArithmeticException
+                   (evall '(if false 'cool (/ 1 0)))))
+      (is (= 1 (evall '(let [unless (fn [cnd a b]
+                                      (if cnd b a))]
+                         (unless false 1 2)))))
+      (is (thrown? ArithmeticException (evall '(let [unless (fn [cnd a b]
+                                                              (if cnd b a))]
+                                                 (unless false 1 (/ 1 0)))))))
+
+    (testing "fn parameters but not arguments"
+      (is (thrown? ArithmeticException (evall '(let [f (fn [a b] a)] (f 'cool (/ 1 0))))))
+      (is (= 'cool (evall '(let [f (fn [a (/ 1 0)] a)] (f 'cool 1))))))
 
     (testing "order of evalution. ex 4.19"
       (is (= 12 (let [a 1]
@@ -184,6 +199,8 @@
 
       (is (= 3 (evall '(if (and (< 0 1) (< 3 4)) 3 2))))
 
+      (is (= 'x (evall '(def x 1))))
+
       (is (= 1 (evall '(do
                          (def x 1)
                          x))))
@@ -191,11 +208,10 @@
                          (def x 1)
                          (def y 2)
                          (+ x y)))))
-      (is (thrown? Exception
-                   (evall '(do
-                             (def x 1)
-                             (def x 2)
-                             (+ x x)))))
+      (is (= 4 (evall '(do
+                         (def x 1)
+                         (def x 2)
+                         (+ x x)))))
       (is (thrown? Exception
                    (evall '(do
                              (def x 1)

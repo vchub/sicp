@@ -24,15 +24,20 @@
   (testing "continuation"
     (defn multirember [x xs]
       (((fn [rm-fn]
-         ((fn [f] (f f))
-          (fn [f] (rm-fn (fn [x] ((f f) x))))))
-       (fn [rm]
-         (fn [xs]
-           (cond
-             (empty? xs) xs
-             (= x (first xs)) (rm (rest xs))
-             :else (cons (first xs) (rm (rest xs))))))) xs))
+          ((fn [f] (f f))
+           (fn [f] (rm-fn (fn [x] ((f f) x))))))
+        (fn [rm]
+          (fn [xs]
+            (cond
+              (empty? xs) xs
+              (= x (first xs)) (rm (rest xs))
+              :else (cons (first xs) (rm (rest xs))))))) xs))
 
     (is (= [1 2 5] (multirember 3 [1 3 3 2 3 5])))))
 
 (multirember)
+
+(comment
+  (if true (/ 1 1) (/ 2 0))
+  (or true (/ 2 0))
+  (and false (/ 2 0)))
