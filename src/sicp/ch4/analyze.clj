@@ -4,7 +4,8 @@
             [clojure.test.check.generators :as gen]
             [clojure.test.check.properties :as prop]
             [clojure.test.check.clojure-test :refer [defspec]]
-            [sicp.ch4.eval-data-multi :as s-interp]))
+            [sicp.ch4.eval-data-multi :as s-interp]
+            [sicp.ch41.eval-start :as ch41]))
 
 (def eval-f)
 (def analyze)
@@ -118,14 +119,24 @@
 
   (testing "compare analyze and sysntax eval"
     (let [env (make-env)]
-      ;; (time )
-      (eval-f '(def-f! factorial
-                 (fn [n] (if (< n 2) 1 (* n (factorial (- n 1)))))) env)
-      (s-interp/eval-f '(def-f! factorial-s
-                          (fn [n] (if (< n 2) 1 (* n (factorial-s (- n 1)))))) env)
-      (is (= (eval-f '(factorial 10) env) (s-interp/eval-f '(factorial-s 10) env)))
-      ;; (time (eval-f '(factorial 20) env))
-      ;; (time (s-interp/eval-f '(factorial-s 20) env))
+      ; (time )
+      (let [anal-fact (fn[] (eval-f '(do
+                                 (def-f! factorial
+                 (fn [n] (if (< n 2) 1 (* n (factorial (- n 1))))))
+                                 (factorial 20)) env))
+      ch41-fact (fn[](ch41/global-eval '(do
+                                   (set! factorial
+                          (fn [n] (if (< n 2) 1 (* n (factorial (- n 1))))))
+                                   (factorial 20))))
+      ]
+        ; (prn anal-fact)
+        ; (prn ch41-fact)
+        (is (= (anal-fact) (ch41-fact)))
+      ; (time (dotimes [_ 10]
+      ;         (anal-fact)))
+      ; (time (dotimes [_ 10]
+      ;         (ch41-fact)))
+        )
       ))
 
   (testing "let"

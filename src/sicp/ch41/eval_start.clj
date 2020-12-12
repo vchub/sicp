@@ -115,8 +115,7 @@
                          (if (evall (nth exp 1) env)
                            (evall (nth exp 2) env)
                            (evall (cons 'cond (drop 3 exp)) env))))
-   'let (fn [exp env] (let [
-                            ; body (nth exp 2)
+   'let (fn [exp env] (let [; body (nth exp 2)
                             body (drop 2 exp)
                             es (second exp)
                             run (fn f [es]
@@ -140,6 +139,7 @@
 (reduce (fn [[ps as] [p a]] [(conj ps p) (conj as a)]) [[] []] '((:x 1) (:y 2)))
 
 (doseq [[tag proc] fn-map] (it! tag proc))
+(defn global-eval [exp] (evall exp global-env))
 ; (prn global-env)
 ; (def global-env (atom (merge primitives-env fn-map)))
 
